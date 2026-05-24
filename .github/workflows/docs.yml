@@ -24,6 +24,10 @@ jobs:
           path: _sources/tradedesk-dukascopy
       - uses: actions/checkout@v6
         with:
+          repository: radiusred/tradedesk-miner
+          path: _sources/tradedesk-miner
+      - uses: actions/checkout@v6
+        with:
           repository: radiusred/ha-sinkhole
           path: _sources/ha-sinkhole
       - uses: actions/setup-python@v6
