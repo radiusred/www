@@ -3,7 +3,7 @@ layout: default
 author: Wordy
 title: "Introducing tradedesk-miner — a fast Rust scanner for our Dukascopy cache"
 date: 2026-05-29
-description: "tradedesk-miner is a new open-source Rust binary we use to scan our cached Dukascopy candle data for statistical anomalies, cross-instrument relationships, and seasonality effects. v1.0.2 ships prebuilt binaries, runs a 1-month 15m single-instrument scan in under a second, and emits results as a locked NDJSON envelope you can pipe straight into a research agent."
+description: "tradedesk-miner is a new open-source Rust binary we use to scan our cached Dukascopy candle data for statistical anomalies, cross-instrument relationships, and seasonality effects. v1.0.2 ships prebuilt binaries and emits results as a locked NDJSON envelope you can pipe straight into a research agent."
 tags: [engineering, open-source, market-data, rust, tradedesk-miner]
 ---
 
@@ -65,17 +65,11 @@ The full envelope reference is in [`docs/findings_envelope.md`](https://github.c
 
 The reason this is a Rust binary and not "just another Python script" is that the cache is large enough — single-digit gigabytes of compressed candles per instrument-year — that interpretation overhead starts to dominate. The `miner-core` engine is sync code on top of [rayon](https://github.com/rayon-rs/rayon) work-stealing; async only lives at the wrapper edges. There is no `tokio` in the core, and there is a CI gate that prevents one creeping in.
 
-Our quant lead ran the v1.0.2 binary against our production-shape Dukascopy cache at `/paperclip/tradedesk/marketdata` last week. The headline wall-clock numbers from that pass:
+In practice, on a single-instrument month of 15m candles, a typical scan completes in well under a second on a developer workstation; cross-instrument scans (cointegration, lead/lag) over a few months of 1h data tend to land in the low single-digit seconds. We are intentionally not publishing a headline wall-clock number in this post — the canonical, per-revision figures live in the bench doc described below, captured on a reference workstation with a frozen recipe so the numbers are reproducible rather than anecdotal.
 
-| Scan shape | Wall clock |
-|---|---|
-| Ljung–Box on EURUSD/bid 15m, January 2024 | **0.8 s** |
-| Engle–Granger cointegration on a cross pair, 1h, three months | **4.3 s** |
-| Two-instrument Welford sweep, manifest-driven | jobs_run: 2, results_emitted: 3 |
+For context, we use these scans not to make trading decisions but to identify candidate effects to study further. At sub-second-to-a-few-seconds per scan, an analyst (or, in our case, a research agent) can comfortably run a sweep across a few dozen instruments and timeframes during the time it takes to make a cup of tea, then spend the rest of the morning deciding which findings are worth a hypothesis. The performance budget exists so that the *thinking step* downstream of the scan does not have to compete with the scan itself for wall clock.
 
-For context, we use these scans not to make trading decisions but to identify candidate effects to study further. At under a second per single-instrument scan, an analyst (or, in our case, a research agent) can comfortably run a sweep across a few dozen instruments and timeframes during the time it takes to make a cup of tea, then spend the rest of the morning deciding which findings are worth a hypothesis. The performance budget exists so that the *thinking step* downstream of the scan does not have to compete with the scan itself for wall clock.
-
-The published binaries are around 8 MiB stripped per platform. The full bench methodology — reference workstation, allocation budget, and the reproducible recipe under `benches/recipes/*.toml` — lives in [`docs/bench-results.md`](https://github.com/radiusred/tradedesk-miner/blob/main/docs/bench-results.md). The numbers in that file are intentionally captured per release rather than embedded in the README.
+The published binaries are around 8 MiB stripped per platform. The reference workstation, the allocation budget, and the reproducible recipes under `benches/recipes/*.toml` are all documented in [`docs/bench-results.md`](https://github.com/radiusred/tradedesk-miner/blob/main/docs/bench-results.md); concrete capture numbers will be filled into that doc per release rather than embedded in the README or a blog post, so they can age out cleanly.
 
 ## How to install it
 
