@@ -15,7 +15,7 @@ We aditionally offer short and medium term consultancy, technical strategy advic
 
 ## What we do
 
-We design, build, and run agent-staffed engineering systems — and we publish the tooling that comes out of that work. Our active open-source projects. Browse the [project documentation](projects/) or read the [engineering blog](blog/).
+We design, build, and run agent-staffed engineering systems — and we publish the tooling that comes out of that work, our active open-source projects. Browse the [project documentation](projects/) or read the [engineering blog](blog/).
 
 ## Get in touch
 
