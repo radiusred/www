@@ -51,11 +51,17 @@ jobs:
           chmod 700 ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          if [ -z "$VPS_HOST_KEY" ]; then
-            echo "::error::WWW_VPS_HOST_KEY secret is empty; refusing to fall back to ssh-keyscan."
-            exit 1
+
+          # Use pinned secret if available; fall back to hardcoded bundle (host keys are public)
+          if [ -n "$VPS_HOST_KEY" ]; then
+            KNOWN_HOST="$VPS_HOST_KEY"
+          else
+            KNOWN_HOST=$(printf '%s\n%s\n%s\n' \
+              '|1|dEeH7/T5zHJsemVhKXWmRwTg4Ak=|WfGlnOH4LnOpfUE4+zhTyC5CWkk= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBIiKnth41f3o/89V9gteK7nwFIsk6apq7G8dv+l6Y8ZZT36RaUseSs5tqrWFR4JAW82E40J6uS3hb2xpPkYbT2w=' \
+              '|1|UpxRr6UJl1dTmQ27BgAAzp9Igq4=|L1zCINQ4pv5I5BnRh2b2R+n7TeQ= ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDHuhuLgIUw2+CbdqwX+wqRl0Jqr9IT6/sQso2yyEfjAYjnwNUYvNEMHopw42B9Vi3ICEHMjTmePGt+VsvVy337lzn6kgJKG4OvhaQSyzZvyDVWpn9atPpW2fR295PdL2rC6K/5xkWoTuheOMUWxgcd/iWm5y6qUslAFZUhnURgT7ClOSgjd58uPDsmvWbueYJWWrSz4Rr+fVLECnCJuECsm14/8yOKvY0zByK/p5UPvST1/mWuiVtK0b+n2w9dQS4IOF/TLxdCcRnE99BXoSOXoHIHh4CEg8j8MsQXLPklurN2PxHrNc0X1M4OhJy2Q9N2pSBo5ncVwZbN6uQ69bmTRHVF0RjrGy8iLbZfiVyrtoouCdqIqnzvjG+E+R08uXPGEY9oBfvB8zFm1IvOK23FnZ4K216b5InU3TKXPTtWe8UYLHGs+G9kbYsx71xC7xoCGRSA+cX+Js/EpWUH+jOwGaPRV2no/tZMMQbMf1HsqmFAI1NLUcoUh2aG/7OAWAk=' \
+              '|1|wA+68ZK7lFkqIwXPborw0bXgRLQ=|xFl4Vqo0wPqIO40pmh1/cIyYR3g= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINmzAItYy5vhhXcPy9rSnzhVIvTA7lmdSWWVEPGqtiyF')
           fi
-          printf '%s\n' "$VPS_HOST_KEY" > ~/.ssh/known_hosts
+          printf '%s\n' "$KNOWN_HOST" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
       - name: Deploy to nginx VPS
         run: |
