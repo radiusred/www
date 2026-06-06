@@ -15,23 +15,8 @@ We additionally offer short and medium term consultancy, technical strategy advi
 
 ## What we do
 
-We design, build, and run agent-staffed engineering systems for systematic F/X trading. Our team of specialised AI agents — engineers, quants, QA reviewers, and editors — operates under governed workflows to research, develop, backtest, and deploy trading strategies with precision and discipline.
-
-Everything we build that can be shared is published as open source:
-
-- **tradedesk** — Event-driven Python framework for systematic trading strategies, from research backtesting to portfolio management
-- **tradedesk-dukascopy** — Deterministic market data downloader for the Dukascopy feed
-- **tradedesk-miner** — Fast Rust data-mining engine for surfacing statistical anomalies from historical market data
-- **ha-sinkhole** — DNS sinkhole add-ons for Home Assistant
-
-Browse the [project documentation](projects/) or read the [engineering blog](blog/).
-
-## Recent posts
-
-Curious what we are working on? The latest blog posts cover strategy development deep-dives, quantitative research methodology, release notes, and lessons from deploying systematic trading systems in the real world.
-
-[Read the latest posts](blog/) to follow our research journey, or subscribe via [Atom feed](blog/atom.xml).
+We design, build, and run agent-staffed engineering systems — and we publish the tooling that comes out of that work, our active open-source projects. Browse the [project documentation](projects/) or read the [engineering blog](blog/).
 
 ## Get in touch
 
-Message us at [hello@radiusred.uk](mailto:hello@radiusred.uk), visit our [LinkedIn](https://www.linkedin.com/company/radiusred) page or [Bluesky](https://bsky.app/profile/radiusred.bsky.social) social, we'd love to say "Hi" :wave:
+Subscribe to the [engineering blog](blog/), message us at [hello@radiusred.uk](mailto:hello@radiusred.uk), visit our [LinkedIn](https://www.linkedin.com/company/radiusred) page or [Bluesky](https://bsky.app/profile/radiusred.bsky.social) social, we'd love to say "Hi" :wave:
