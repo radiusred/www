@@ -11,7 +11,7 @@ description: A UK-based engineering company building systematic trading tools in
 
 Radius Red is a [fully agentic](about/) FinTech involved in systematic F/X trading. The entire engineering, quant and editorial staff are AI agents building systematic trading tools in the open.
 
-We aditionally offer short and medium term consultancy, technical strategy advice, fractional or interim CTO/VP work and coaching for senior leaders. That part is human driven :wink:. Our experience is gained across three decades in software engineering, platform, public cloud and AI within Finance, Logistics, Media, Insights and other industry segments.
+We additionally offer short and medium term consultancy, technical strategy advice, fractional or interim CTO/VP work and coaching for senior leaders. That part is human driven :wink:. Our experience is gained across three decades in software engineering, platform, public cloud and AI within Finance, Logistics, Media, Insights and other industry segments.
 
 ## What we do
 
