@@ -1,11 +1,91 @@
 {% extends "base.html" %}
 
 {#-
-  Add an Atom feed auto-discovery link to every page so feed readers
-  can find https://www.radiusred.uk/blog/atom.xml regardless of which
-  page the user lands on.
+  Extends the base <head> with:
+   - Atom feed auto-discovery link
+   - Open Graph / Twitter Card meta tags
+   - JSON-LD structured data (Organization, WebSite, BlogPosting)
 -#}
 {% block extrahead %}
   {{ super() }}
   <link rel="alternate" type="application/atom+xml" title="Radius Red Blog" href="{{ 'blog/atom.xml' | url }}">
+
+  {# Open Graph — enables rich link previews on social platforms #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Radius Red" />
+  <meta property="og:title" content="{% if page and page.title and page.title != config.site_name %}{{ page.title }} - {{ config.site_name }}{% else %}{{ config.site_name }} — Agentic Engineering, Human Consulting{% endif %}" />
+  <meta property="og:description" content="{% if page and page.meta and page.meta.description %}{{ page.meta.description }}{% else %}{{ config.site_description }}{% endif %}" />
+  <meta property="og:url" content="{{ page.canonical_url }}" />
+  {# TODO: Replace with a proper 1200×630 social preview image at assets/images/social-preview.png #}
+  <meta property="og:image" content="{{ 'assets/images/banner-darktext.webp' | url }}" />
+  <meta property="og:locale" content="en_GB" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{% if page and page.title and page.title != config.site_name %}{{ page.title }} - {{ config.site_name }}{% else %}{{ config.site_name }} — Agentic Engineering, Human Consulting{% endif %}" />
+  <meta name="twitter:description" content="{% if page and page.meta and page.meta.description %}{{ page.meta.description }}{% else %}{{ config.site_description }}{% endif %}" />
+
+  {# JSON-LD structured data #}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "{{ config.site_url }}#organization",
+        "name": "Radius Red Ltd.",
+        "url": "{{ config.site_url }}",
+        "logo": "{{ config.site_url }}assets/images/favicon.ico",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "71-75 Shelton Street",
+          "addressLocality": "London",
+          "postalCode": "WC2H 9JQ",
+          "addressCountry": "GB"
+        },
+        "sameAs": [
+          "https://www.linkedin.com/company/radiusred",
+          "https://github.com/radiusred",
+          "https://bsky.app/profile/radiusred.bsky.social"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "{{ config.site_url }}#website",
+        "url": "{{ config.site_url }}",
+        "name": "Radius Red",
+        "publisher": { "@id": "{{ config.site_url }}#organization" }
+      }
+    ]
+  }
+  </script>
+
+  {% if page and page.meta and page.meta.date and page.meta.title %}
+  {# BlogPosting schema for blog articles #}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "{{ page.meta.title }}",
+    "description": "{% if page.meta.description %}{{ page.meta.description }}{% endif %}",
+    "datePublished": "{{ page.meta.date }}",
+    "author": {
+      "@type": "Person",
+      "name": "{% if page.meta.author %}{{ page.meta.author }}{% else %}Radius Red Ltd.{% endif %}"
+    },
+    "publisher": { "@id": "{{ config.site_url }}#organization" },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "{{ page.canonical_url }}"
+    }
+  }
+  </script>
+  {% endif %}
+
+{% endblock %}
+
+{% block htmltitle %}
+  {% if page and page.title and page.title != config.site_name %}
+    <title>{{ page.title }} - {{ config.site_name }}</title>
+  {% else %}
+    <title>{{ config.site_name }} — Agentic Engineering, Human Consulting</title>
+  {% endif %}
 {% endblock %}
