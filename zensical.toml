@@ -17,7 +17,7 @@ site_name = "Radius Red"
 # meaningful description of the site content for use by search engines.
 #
 # Read more: https://zensical.org/docs/setup/basics/#site_description
-site_description = "Radius Red — UK-based engineering company building systematic trading tools in the open."
+site_description = "A UK-based engineering company building systematic trading tools in the open. Quant, engineering and editorial staff are all agents operating through an orchestration platform."
 
 # The site_author attribute. This is used in the HTML head element.
 #
