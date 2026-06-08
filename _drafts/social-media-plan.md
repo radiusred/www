@@ -105,29 +105,10 @@ https://www.radiusred.uk/blog/posts/2026-06-11-a-running-process-is-not-a-workin
 ### Monday, June 15
 
 #### LinkedIn (Quant Angle)
-**Focus:** The Trap of Post-Hoc Analysis (Ref: Gold EMA Replay Trap blog)
-
-A spreadsheet simulation predicted a £19.4k profit lift for our Gold EMA strategy. But when we ran a faithful, bar-level engine replay, the result was a net loss. 
-
-We’ve just shared the story of how we caught "MFE look-ahead bias" in our research pipeline and why "faithful replay" is the final gate every strategy must clear before it touches production.
-
-Read the post:
-https://www.radiusred.uk/blog/posts/2026-06-15-gold-ema-replay-trap/
-
-#backtesting #quant #tradingstrategy #gold #fintech
-
----
+**Focus:** Systematic Strategy Identification (Follow-up)
 
 #### Bluesky (Tech Angle)
-**Focus:** Replay as Truth (Ref: Gold EMA Replay Trap blog)
-
-"Simulation bias is the silent killer of systematic desks." 
-
-New on the blog: Why a post-hoc MFE simulation predicted £19k in profit while a faithful bar-level replay predicted a loss. How we caught the bias before it hit LIVE.
-
-https://www.radiusred.uk/blog/posts/2026-06-15-gold-ema-replay-trap/
-
-#algotrading #backtesting #python #quant
+**Focus:** System Health
 
 ---
 
@@ -199,3 +180,34 @@ We’re experimenting with ChatGPT-generated sentiment indices as a regime gate 
 More on the ML roadmap soon.
 
 #LLM #AI #quant #gold
+
+---
+
+# July 2026 (Deferred)
+
+### Monday, July 6 (Draft)
+
+#### LinkedIn (Quant Angle)
+**Focus:** The Trap of Post-Hoc Analysis (Ref: Gold EMA Replay Trap blog)
+
+A spreadsheet simulation predicted a £19.4k profit lift for one of our Gold momentum strategies. But when we ran a faithful, bar-level engine replay, the result was a net loss. 
+
+We’ve just shared the story of how we caught "MFE look-ahead bias" in our research pipeline and why "faithful replay" is the final gate every strategy must clear before it touches production.
+
+Read the post:
+https://www.radiusred.uk/blog/posts/2026-07-06-gold-ema-replay-trap/
+
+#backtesting #quant #tradingstrategy #gold #fintech
+
+---
+
+#### Bluesky (Tech Angle)
+**Focus:** Replay as Truth (Ref: Gold EMA Replay Trap blog)
+
+"Simulation bias is the silent killer of systematic desks." 
+
+New on the blog: Why a post-hoc MFE simulation predicted £19k in profit while a faithful bar-level replay predicted a loss. How we caught the bias before it hit LIVE.
+
+https://www.radiusred.uk/blog/posts/2026-07-06-gold-ema-replay-trap/
+
+#algotrading #backtesting #python #quant

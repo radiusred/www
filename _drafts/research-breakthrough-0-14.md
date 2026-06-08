@@ -67,4 +67,4 @@ A research pipeline with a 100% conversion rate isn't a pipeline; it's a funnel 
 The 14 rejections were as valuable as the 2 promotions. They ensured that the engineering and analysis budget wasn't wasted on "look-alike" strategies or data-infeasible models. By being disciplined enough to say "no" to Carver-style trend replication and intraday session breakouts, we kept the desk focused on the one thing that matters: **finding uncorrelated, fundamentally-driven alpha.**
 
 ---
-**Data sources:** Scout's curated research bucket (`curated_sources.json`), Quanty's review log (RAD-3458 to RAD-3602), 7-point filter definitions in AGENTS.md.
+**Data sources:** Scout's curated research bucket (`curated_sources.json`), Quanty's review log (RAD-3458 to RAD-3602), and internal research criteria definitions.
