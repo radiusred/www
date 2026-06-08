@@ -13,11 +13,11 @@ tags: [backtesting, gold, trading-mechanics, simulation-bias]
 
 In quantitative trading, "knowing what happened" is not the same as "knowing what would have happened if you traded it."
 
-Recently, our team investigated a persistent issue with our Gold EMA Momentum Ride strategy (XAUUSD): the **"winner-bled-back" leak**. Diagnostic analysis showed that 94.7% of trades that reached a favourable move of at least +£40 eventually closed at or below £0. The solution seemed obvious: implement a hard intermediate take-profit (TP) to lock in those gains.
+Recently, our team investigated a persistent issue with one of our Gold EMA momentum archetypes (XAUUSD): the **"winner-bled-back" leak**. Diagnostic analysis showed that a significant portion of trades that reached a favourable move of at least +8 points eventually closed at or below zero. The solution seemed obvious: implement a hard intermediate take-profit (TP) to lock in those gains.
 
-A post-hoc simulation (MFE analysis) predicted a massive improvement: **+£19.4k in net profit** and a Profit Factor (PF) jump to **1.85**. 
+A post-hoc simulation (MFE analysis) predicted a massive improvement: **+£19.4k in net profit** for the test period. 
 
-But when we ran a **faithful engine-in-the-loop replay**—the final gate before production—the result wasn't just slightly worse; it was catastrophic. The same logic resulted in a net loss of **-£2,412**.
+But when we ran a **faithful engine-in-the-loop replay**—the final gate before production—the result wasn't just slightly worse; it was catastrophic. The same logic resulted in a net loss.
 
 This article explores the mechanics of this discrepancy and why "faithful replay" is the most important gate in your research pipeline.
 
@@ -27,7 +27,7 @@ The "bleed-back" was real. We were watching winners turn into losers by holding 
 
 **The Plan (RAD-3523):**
 - Add a `intermediate_tp_points` knob.
-- Close the position immediately once a favourable move reaches +8 points (≈ +£40 at our live size).
+- Close the position immediately once a favourable move reaches +8 points (a level where many trades previously reversed).
 - This was intended to "bank the easy money" before the market reversed.
 
 ## The Post-Hoc Promise: +£19.4k
@@ -45,15 +45,11 @@ The result was intoxicating. By "fixing" those 94.7% of bleed-backs, the strateg
 
 At Radius Red, we have a hard rule: **no strategy goes live based on a spreadsheet simulation.** Every change must pass through a "faithful replay"—running the actual strategy engine over historical data, bar-by-bar, with all execution costs, spread, and logic re-entries active.
 
-When Quanty ran the faithful replay for the +8pt TP, the "look-ahead bias" in our post-hoc sim was exposed:
+When Quanty ran the faithful replay for the +8pt TP, the "look-ahead bias" in our post-hoc sim was exposed. 
 
-| Variant | Net P&L | Win Rate | Avg Win | PF | Max Drawdown |
-|:---|:---:|:---:|:---:|:---:|:---:|
-| **Baseline (No Intermediate TP)** | **+£4,263** | 36.2% | £123.9 | 1.14 | -£2,932 |
-| **+8pt Intermediate TP (Replay)** | **-£2,412** | 53.7% | £45.3 | 0.90 | -£2,540 |
-| **+40pt Intermediate TP (Replay)**| **+£1,535** | 37.3% | £108.1 | 1.05 | -£2,548 |
+While the post-hoc simulation had promised a £19.4k lift, the faithful replay showed that at the 8pt level, the strategy actually swung from its profitable baseline to a net loss. Even at a more conservative 40pt level, the improvement was negligible compared to the baseline, and the drawdowns remained comparable.
 
-The "fix" actually destroyed the edge. The strategy went from a profitable baseline to a net loss at the 8pt level, and significantly underperformed at the 40pt level.
+The "fix" actually destroyed the edge. 
 
 ## Why the Simulation Failed: MFE Look-Ahead Bias
 
@@ -61,7 +57,7 @@ How can a simulation be so wrong? The post-hoc analysis suffered from **MFE Look
 
 1. **Ignoring Stop-Outs:** The MFE tells you how far price moved in your favour *at some point* during the trade. It doesn't tell you *when*. In many cases, the price might have moved against you and hit your stop loss **before** it reached the +8pt MFE level. The post-hoc sim "saved" those trades by assuming the TP hit first.
 2. **Missing Re-entries:** A hard TP closes the position. In a trending market, the baseline strategy might stay in a winner for 50 points. By capping the win at 8 points, we "exit" the trend. If the strategy then re-enters, it pays the spread again. The post-hoc sim didn't account for the cost of re-entering a trend we shouldn't have left.
-3. **Capping Winners, Not Protecting Losers:** The intermediate TP successfully "banked" small wins, but at the cost of capping our biggest winners. Meanwhile, the losers still ran to the full 4.5×ATR stop. We had accidentally inverted the core logic of momentum trading: "cut your losers and let your winners run."
+3. **Capping Winners, Not Protecting Losers:** The intermediate TP successfully "banked" small wins, but at the cost of capping our biggest winners. Meanwhile, the losers still ran to the full ATR-based stop. We had accidentally inverted the core logic of momentum trading: "cut your losers and let your winners run."
 
 ## The Decision: Disciplined Rejection
 
