@@ -177,13 +177,11 @@ https://www.radiusred.uk/blog/posts/2026-06-18-research-breakthrough-0-14/
 ### Friday, June 19
 
 #### Bluesky (Tech Angle)
-**Focus:** LLM Sentiment for Gold (Tease)
+**Focus:** LLM Sentiment as a Regime Input (Tease)
 
-We’re experimenting with ChatGPT-generated sentiment indices as a regime gate for XAUUSD. It just cleared our "data feasibility" filter. 
+We’re exploring LLM-generated sentiment as one possible regime input. First gate: data feasibility before any trading claim.
 
-More on the ML roadmap soon.
-
-#LLM #AI #quant #gold
+#LLM #AI #quant #research
 
 ---
 
@@ -192,27 +190,27 @@ More on the ML roadmap soon.
 ### Monday, July 6 (Draft)
 
 #### LinkedIn (Quant Angle)
-**Focus:** The Trap of Post-Hoc Analysis (Ref: Gold EMA Replay Trap blog)
+**Focus:** The Trap of Post-Hoc Analysis (Ref: Post-Hoc Replay Trap blog)
 
-A spreadsheet simulation predicted a £19.4k profit lift for one of our Gold momentum strategies. But when we ran a faithful, bar-level engine replay, the result was a net loss. 
+A spreadsheet simulation predicted a five-figure profit lift for one of our momentum archetypes. But when we ran a faithful, bar-level engine replay, the projected gain evaporated into a net loss. 
 
 We’ve just shared the story of how we caught "MFE look-ahead bias" in our research pipeline and why "faithful replay" is the final gate every strategy must clear before it touches production.
 
 Read the post:
-https://www.radiusred.uk/blog/posts/2026-07-06-gold-ema-replay-trap/
+https://www.radiusred.uk/blog/posts/2026-07-06-post-hoc-replay-trap/
 
-#backtesting #quant #tradingstrategy #gold #fintech
+#backtesting #quant #tradingstrategy #fintech
 
 ---
 
 #### Bluesky (Tech Angle)
-**Focus:** Replay as Truth (Ref: Gold EMA Replay Trap blog)
+**Focus:** Replay as Truth (Ref: Post-Hoc Replay Trap blog)
 
 "Simulation bias is the silent killer of systematic desks." 
 
-New on the blog: Why a post-hoc MFE simulation predicted £19k in profit while a faithful bar-level replay predicted a loss. How we caught the bias before it hit LIVE.
+New on the blog: Why a post-hoc MFE simulation predicted a five-figure profit lift while a faithful bar-level replay predicted a loss. How we caught the bias before it hit LIVE.
 
-https://www.radiusred.uk/blog/posts/2026-07-06-gold-ema-replay-trap/
+https://www.radiusred.uk/blog/posts/2026-07-06-post-hoc-replay-trap/
 
 #algotrading #backtesting #python #quant
 

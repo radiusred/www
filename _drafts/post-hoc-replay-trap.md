@@ -3,8 +3,8 @@ layout: default
 author: Wordy
 title: "The Trap of Post-Hoc Analysis: Why Faithful Replay Disproved the 'Winner-Bled-Back' Fix"
 date: 2026-06-08
-description: "A post-hoc simulation predicted a £19.4k profit improvement for our Gold EMA strategy by fixing a 'winner-bled-back' leak. But when we ran a faithful engine-in-the-loop replay, the same logic resulted in a loss. Here is how we caught the MFE look-ahead bias before it hit production."
-tags: [backtesting, gold, trading-mechanics, simulation-bias]
+description: "A post-hoc simulation predicted a five-figure profit improvement for one of our momentum archetypes by fixing a 'winner-bled-back' leak. But when we ran a faithful engine-in-the-loop replay, the same logic resulted in a loss. Here is how we caught the MFE look-ahead bias before it hit production."
+tags: [backtesting, trading-mechanics, simulation-bias]
 ---
 
 # The Trap of Post-Hoc Analysis: Why Faithful Replay Disproved the 'Winner-Bled-Back' Fix
@@ -13,9 +13,9 @@ tags: [backtesting, gold, trading-mechanics, simulation-bias]
 
 In quantitative trading, "knowing what happened" is not the same as "knowing what would have happened if you traded it."
 
-Recently, our team investigated a persistent issue with one of our Gold EMA momentum archetypes (XAUUSD): the **"winner-bled-back" leak**. Diagnostic analysis showed that a significant portion of trades that reached a favourable move of at least +8 points eventually closed at or below zero. The solution seemed obvious: implement a hard intermediate take-profit (TP) to lock in those gains.
+Recently, our team investigated a persistent issue with one of our momentum archetypes: the **"winner-bled-back" leak**. Diagnostic analysis showed that a significant portion of trades that reached a favourable intermediate move eventually closed at or below zero. The solution seemed obvious: implement a hard intermediate take-profit (TP) to lock in those gains.
 
-A post-hoc simulation (MFE analysis) predicted a massive improvement: **+£19.4k in net profit** for the test period. 
+A post-hoc simulation (MFE analysis) predicted a massive improvement: a **five-figure lift in net profit** for the test period. 
 
 But when we ran a **faithful engine-in-the-loop replay**—the final gate before production—the result wasn't just slightly worse; it was catastrophic. The same logic resulted in a net loss.
 
@@ -25,12 +25,12 @@ This article explores the mechanics of this discrepancy and why "faithful replay
 
 The "bleed-back" was real. We were watching winners turn into losers by holding too long, waiting for a massive trend that rarely materialized before hitting our wider ATR-based stop or TP.
 
-**The Plan (RAD-3523):**
-- Add a `intermediate_tp_points` knob.
-- Close the position immediately once a favourable move reaches +8 points (a level where many trades previously reversed).
+**The Plan:**
+- Add an `intermediate_tp` knob.
+- Close the position immediately once a favourable move reaches an intermediate threshold (a level where many trades previously reversed).
 - This was intended to "bank the easy money" before the market reversed.
 
-## The Post-Hoc Promise: +£19.4k
+## The Post-Hoc Promise: A Five-Figure Lift
 
 We first tested this using a common analytical technique: **post-hoc simulation** on existing trade lists. 
 
@@ -39,15 +39,15 @@ We first tested this using a common analytical technique: **post-hoc simulation*
 3. If MFE ≥ 8 points, "rewrite" the trade result to be a +8 point win.
 4. Recalculate the aggregate P&L.
 
-The result was intoxicating. By "fixing" those 94.7% of bleed-backs, the strategy's equity curve transformed. We saw a projected profit lift of nearly £20k. The decision to move to implementation (Cody, RAD-3523) was made within hours.
+The result was intoxicating. By "fixing" the vast majority of bleed-backs, the strategy's equity curve transformed. We saw a projected five-figure profit lift. The decision to move to implementation was made within hours.
 
 ## The Reality Check: Faithful Replay
 
 At Radius Red, we have a hard rule: **no strategy goes live based on a spreadsheet simulation.** Every change must pass through a "faithful replay"—running the actual strategy engine over historical data, bar-by-bar, with all execution costs, spread, and logic re-entries active.
 
-When Quanty ran the faithful replay for the +8pt TP, the "look-ahead bias" in our post-hoc sim was exposed. 
+When we ran the faithful replay for the intermediate TP, the "look-ahead bias" in our post-hoc sim was exposed. 
 
-While the post-hoc simulation had promised a £19.4k lift, the faithful replay showed that at the 8pt level, the strategy actually swung from its profitable baseline to a net loss. Even at a more conservative 40pt level, the improvement was negligible compared to the baseline, and the drawdowns remained comparable.
+While the post-hoc simulation had promised a five-figure lift, the faithful replay showed that at the tighter intermediate-TP level, the strategy actually swung from its profitable baseline to a net loss. Even at a more conservative threshold, the improvement was negligible compared to the baseline, and the drawdowns remained comparable.
 
 The "fix" actually destroyed the edge. 
 
@@ -66,7 +66,7 @@ The data was undeniable. The "winner-bled-back" problem was a psychological frus
 We made the following decisions:
 - **REJECTED** the hard intermediate TP for LIVE deployment.
 - **KEPT** the code (the "knob") in the strategy engine but disabled it.
-- **DELEGATED** a new search (RAD-3532) for alternative exit mechanisms: trailing stops, breakeven ratchets, or partial scale-outs.
+- **DELEGATED** a new search for alternative exit mechanisms: trailing stops, breakeven ratchets, or partial scale-outs.
 
 ## Lessons for the Pipeline
 
@@ -74,7 +74,4 @@ We made the following decisions:
 2. **Replay is Truth:** The only way to know if a rule works is to let the engine trade it, bar-by-bar.
 3. **MFE is a Diagnostic, Not a Strategy:** MFE data is great for identifying *where* you are leaving money on the table, but turning a diagnostic observation into a hard rule requires careful verification of execution order.
 
-By catching this in the faithful replay gate (Quanty, RAD-3523), we saved the desk from deploying a profit-reducing "fix" to a working strategy. We didn't solve the bleed-back yet, but we didn't go broke trying.
-
----
-**Data sources:** Backtest results from RAD-3523 and RAD-3507, diagnostic MFE analysis, faithful engine replay artifacts.
+By catching this in the faithful replay gate, we saved the desk from deploying a profit-reducing "fix" to a working strategy. We didn't solve the bleed-back yet, but we didn't go broke trying.
