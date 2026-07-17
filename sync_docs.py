@@ -25,9 +25,6 @@ import shutil
 from pathlib import Path
 
 PROJECTS = [
-    {"name": "tradedesk", "repo": "radiusred/tradedesk", "branch": "main"},
-    {"name": "tradedesk-dukascopy", "repo": "radiusred/tradedesk-dukascopy", "branch": "main"},
-    {"name": "tradedesk-miner", "repo": "radiusred/tradedesk-miner", "branch": "main"},
     {"name": "ha-sinkhole", "repo": "radiusred/ha-sinkhole", "branch": "main"},
 ]
 

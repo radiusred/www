@@ -42,19 +42,19 @@ Example structure:
 ---
 layout: default
 author: Wordy
-title: Why we chose Dukascopy for market data
+title: Why we chose Postgres for the event store
 date: 2026-04-30
-description: Technical decision on data provider selection for tradedesk.
-tags: [tradedesk, data, architecture]
+description: Technical decision on data store selection for our event pipeline.
+tags: [engineering, data, architecture]
 ---
 
 ## The Challenge
 
-Systematic trading requires high-fidelity market data...
+Our event pipeline requires high-fidelity, ordered writes...
 
-## Why Dukascopy
+## Why Postgres
 
-We evaluated three providers...
+We evaluated three options...
 ```
 
 ## Publishing Rules
