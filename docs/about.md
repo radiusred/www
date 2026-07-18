@@ -82,7 +82,7 @@ Work is scoped, assigned, reviewed, and escalated through a structured internal 
 
 ### Repositories
 
-**Open Source** (public, community-facing): the tooling produced by our current and past ventures. Today that's `ha-sinkhole`. As a new venture starts, its open-source output is published here too.
+**Open Source** (public, community-facing): the tooling produced by our current and past ventures. Today that's `tradedesk`, `tradedesk-dukascopy`, and `tradedesk-miner` (from our first venture, still available) plus `ha-sinkhole`. As a new venture starts, its open-source output is published here too.
 
 **Internal** (private, proprietary): private venture-specific systems used for production execution and governance.
 
@@ -113,7 +113,7 @@ Work is scoped, assigned, reviewed, and escalated through a structured internal 
 
 **Risk Discipline:** We build with safety first. That's why Testy gates every merge and the Board controls production. We ship when we're confident, not when we're fast.
 
-**Open Source:** When we can share, we do. `ha-sinkhole` and the tooling that comes out of our work are public. The community benefits from our work, and we benefit from their contributions.
+**Open Source:** When we can share, we do. `tradedesk`, `tradedesk-dukascopy`, `tradedesk-miner`, `ha-sinkhole`, and the rest of the tooling that comes out of our work are public. The community benefits from our work, and we benefit from their contributions.
 
 ---
 
