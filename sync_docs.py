@@ -6,6 +6,10 @@ For each project, this script copies:
   SECURITY.md     -> <project>/security.md       (if present)
   docs/**         -> <project>/**                (subtree preserved, if present)
 
+A project may list `exclude` paths (relative to its docs/ dir, e.g.
+"milestones/") to leave out of the sync. Links into an excluded path are
+rewritten to GitHub URLs, like any other non-synced file.
+
 Markdown links and HTML <img src> in synced .md files are rewritten so:
   - links to other synced files resolve correctly under docs/projects/<name>/
   - links to non-synced files become absolute GitHub URLs (blob/ or raw/)
@@ -29,7 +33,8 @@ PROJECTS = [
     {"name": "tradedesk-dukascopy", "repo": "radiusred/tradedesk-dukascopy", "branch": "main"},
     {"name": "tradedesk-miner", "repo": "radiusred/tradedesk-miner", "branch": "main"},
     {"name": "ha-sinkhole", "repo": "radiusred/ha-sinkhole", "branch": "main"},
-    {"name": "gh-codecrew", "repo": "radiusred/gh-codecrew", "branch": "main"},
+    # Per-milestone records are internal project history, not www material.
+    {"name": "gh-codecrew", "repo": "radiusred/gh-codecrew", "branch": "main", "exclude": ["milestones/"]},
 ]
 
 DEST_BASE = Path("docs/projects")
@@ -73,7 +78,17 @@ def split_anchor(path):
     return path, ""
 
 
-def map_to_dest(repo_path):
+def is_excluded(docs_rel, project):
+    """True if `docs_rel` (relative to the upstream docs/ dir) falls under one
+    of the project's `exclude` entries. A trailing slash marks a subtree."""
+    for pattern in project.get("exclude", ()):
+        prefix = pattern.rstrip("/")
+        if docs_rel == prefix or docs_rel.startswith(prefix + "/"):
+            return True
+    return False
+
+
+def map_to_dest(repo_path, project):
     """Map a repo-root-relative path to (dest_relpath_or_None, repo_path).
 
     dest_relpath is relative to the project dir (e.g. 'index.md', 'foo.md',
@@ -83,7 +98,10 @@ def map_to_dest(repo_path):
     if repo_path in ROOT_FILE_MAP:
         return ROOT_FILE_MAP[repo_path], repo_path
     if repo_path.startswith("docs/"):
-        return repo_path[len("docs/"):], repo_path
+        docs_rel = repo_path[len("docs/"):]
+        if is_excluded(docs_rel, project):
+            return None, repo_path
+        return docs_rel, repo_path
     return None, repo_path
 
 
@@ -113,12 +131,12 @@ def rewrite_target(url, source_repo_path, project, is_image):
         # Escapes repo root — leave the original alone.
         return url
 
-    dest_relpath, repo_path = map_to_dest(resolved)
+    dest_relpath, repo_path = map_to_dest(resolved, project)
     if dest_relpath is None:
         return github_url(repo_path, project, is_image) + anchor
 
     # Compute relative path from this file's destination dir to the target's.
-    source_dest, _ = map_to_dest(source_repo_path)
+    source_dest, _ = map_to_dest(source_repo_path, project)
     source_dest_dir = posixpath.dirname(source_dest) if source_dest else ""
     rel = posixpath.relpath(dest_relpath, source_dest_dir or ".")
     return rel + anchor
@@ -273,6 +291,8 @@ def sync_project(project):
     if docs_src.is_dir():
         for path in sorted(docs_src.rglob("*")):
             rel = path.relative_to(docs_src)
+            if is_excluded(rel.as_posix(), project):
+                continue
             target = dest / rel
             if path.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
