@@ -33,6 +33,10 @@ jobs:
         with:
           repository: radiusred/ha-sinkhole
           path: _sources/ha-sinkhole
+      - uses: actions/checkout@v6
+        with:
+          repository: radiusred/gh-codecrew
+          path: _sources/gh-codecrew
       - uses: actions/setup-python@v6
         with:
           python-version: 3.x

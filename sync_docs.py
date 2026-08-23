@@ -29,6 +29,7 @@ PROJECTS = [
     {"name": "tradedesk-dukascopy", "repo": "radiusred/tradedesk-dukascopy", "branch": "main"},
     {"name": "tradedesk-miner", "repo": "radiusred/tradedesk-miner", "branch": "main"},
     {"name": "ha-sinkhole", "repo": "radiusred/ha-sinkhole", "branch": "main"},
+    {"name": "gh-codecrew", "repo": "radiusred/gh-codecrew", "branch": "main"},
 ]
 
 DEST_BASE = Path("docs/projects")
