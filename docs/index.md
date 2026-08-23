@@ -22,9 +22,10 @@ Everything we build that can be shared is published as open source. Today that's
 - **tradedesk** — Event-driven Python framework for systematic trading strategies, from research backtesting to portfolio management
 - **tradedesk-dukascopy** — Deterministic market data downloader for the Dukascopy feed
 - **tradedesk-miner** — Fast Rust data-mining engine for surfacing statistical anomalies from historical market data
-- **ha-sinkhole** — DNS sinkhole add-ons for Home Assistant
+- **ha-sinkhole** — Highly available DNS sinkhole service for blocking ads, trackers, and malware
+- **gh-codecrew** — Lightweight framework for agent-driven software delivery: a protocol, role contracts, and a `gh` extension CLI
 
-The `tradedesk` family was built for our first venture and remains open source and available, even though that venture has wound down. As our next venture takes shape, its open-source output will be listed here too.
+The `tradedesk` family was built for our first venture and remains open source and available, even though that venture has wound down. As our next venture takes shape, its open-source output will be listed here too. `gh-codecrew` is the framework our own agent crew runs on — this site is one of its spokes.
 
 Browse the [project documentation](projects/) or read the [engineering blog](blog/).
 
