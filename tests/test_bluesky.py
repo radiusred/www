@@ -89,3 +89,30 @@ def test_build_post_merges_link_and_tag_facets_in_byte_order():
     record = bluesky.build_post("#first https://a.example/ #last", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
     kinds = [(f["index"]["byteStart"], f["features"][0]["$type"].rsplit("#", 1)[-1]) for f in record["facets"]]
     assert kinds == [(0, "tag"), (7, "link"), (7 + len("https://a.example/ "), "tag")]
+
+
+def test_markdown_links_become_display_text_with_a_link_facet():
+    text, found = bluesky.facets("Read [the 1.0 article](https://x.example/a-very-long-path) and #tag it")
+    assert text == "Read the 1.0 article and #tag it"
+    link, tag = found
+    start = len("Read ".encode())
+    assert link["index"] == {"byteStart": start, "byteEnd": start + len("the 1.0 article")}
+    assert link["features"][0]["uri"] == "https://x.example/a-very-long-path"
+    assert tag["features"][0]["tag"] == "tag"
+    assert text.encode()[tag["index"]["byteStart"] : tag["index"]["byteEnd"]] == b"#tag"
+
+
+def test_markdown_links_after_non_ascii_and_beside_bare_urls():
+    text, found = bluesky.facets("café [one](https://a.example/1) https://b.example/2 [two](https://c.example/3)")
+    assert text == "café one https://b.example/2 two"
+    assert [f["features"][0]["uri"] for f in found] == ["https://a.example/1", "https://b.example/2", "https://c.example/3"]
+    for f in found:
+        span = text.encode()[f["index"]["byteStart"] : f["index"]["byteEnd"]].decode()
+        assert span in ("one", "https://b.example/2", "two")
+
+
+def test_grapheme_limit_counts_the_display_text_not_the_url():
+    long_url = "https://x.example/" + "p" * 400
+    record = bluesky.build_post(f"[short]({long_url})", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    assert record["text"] == "short"
+    assert record["facets"][0]["features"][0]["uri"] == long_url

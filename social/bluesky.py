@@ -12,6 +12,8 @@ from .transport import ApiError, Response
 DEFAULT_PDS = "https://bsky.social"
 MAX_GRAPHEMES = 300
 URL_RE = re.compile(r"https?://[^\s<>()\[\]\"']+")
+# [label](https://…) — the label is what readers see; the facet carries the URL.
+MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
 # A tag is "#" plus word characters, not glued to a preceding word character
 # (so a URL fragment or "a#b" is not a tag) and not purely numeric.
 TAG_RE = re.compile(r"(?<!\w)#(\w+)")
@@ -55,9 +57,27 @@ def tag_facets(text: str) -> list[dict]:
     return facets
 
 
-def facets(text: str) -> list[dict]:
-    """All facets (links, tags), in byte order."""
-    return sorted(link_facets(text) + tag_facets(text), key=lambda f: f["index"]["byteStart"])
+def resolve_markdown_links(text: str) -> tuple[str, list[dict]]:
+    """Replace ``[label](url)`` with ``label`` and return the text plus a link
+    facet per label, with byte offsets into the *replaced* text."""
+    out, facets, pos = [], [], 0
+    consumed = ""
+    for match in MD_LINK_RE.finditer(text):
+        consumed += text[pos : match.start()]
+        label, url = match.group(1), match.group(2)
+        facets.append(_facet(consumed + label, len(consumed), label, {"$type": "app.bsky.richtext.facet#link", "uri": url}))
+        consumed += label
+        pos = match.end()
+    consumed += text[pos:]
+    return consumed, facets
+
+
+def facets(text: str) -> tuple[str, list[dict]]:
+    """The display text and all its facets (labelled links, bare links, tags),
+    in byte order."""
+    text, labelled = resolve_markdown_links(text)
+    found = labelled + link_facets(text) + tag_facets(text)
+    return text, sorted(found, key=lambda f: f["index"]["byteStart"])
 
 
 def build_post(
@@ -67,7 +87,7 @@ def build_post(
     description: str | None = None,
     created_at: datetime | None = None,
 ) -> dict:
-    text = text.strip()
+    text, found = facets(text.strip())
     if not text:
         raise ValueError("post text is empty")
     count = grapheme_len(text)
@@ -79,7 +99,6 @@ def build_post(
         "text": text,
         "createdAt": when.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
     }
-    found = facets(text)
     if found:
         record["facets"] = found
     if link:
