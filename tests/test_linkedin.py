@@ -8,7 +8,7 @@ from social.transport import ApiError
 
 def test_escape_commentary_escapes_every_reserved_character():
     assert linkedin.escape_commentary("a (b) [c] {d} <e> *f* _g_ ~h~ #i @j |k| \\") == (
-        "a \\(b\\) \\[c\\] \\{d\\} \\<e\\> \\*f\\* \\_g\\_ \\~h\\~ \\#i \\@j \\|k\\| \\\\"
+        "a \\(b\\) \\[c\\] \\{d\\} \\<e\\> \\*f\\* \\_g\\_ \\~h\\~ {hashtag|\\#|i} \\@j \\|k\\| \\\\"
     )
     assert linkedin.escape_commentary("plain, text. 1.0 — fine!") == "plain, text. 1.0 — fine!"
 
@@ -76,3 +76,10 @@ def test_organization_acls_and_lookup(transport):
     client = linkedin.LinkedIn(transport, "cid", "csecret", "tok")
     (acl,) = client.organization_acls()
     assert client.organization(acl["organization"])["vanityName"] == "radiusred"
+
+
+def test_escape_commentary_renders_hashtags_as_entities_and_leaves_urls_alone():
+    text = "Ship (it) #CodeCrew https://x.example/p_1#frag #2026 and #DevTools"
+    assert linkedin.escape_commentary(text) == (
+        "Ship \\(it\\) {hashtag|\\#|CodeCrew} https://x.example/p_1#frag \\#2026 and {hashtag|\\#|DevTools}"
+    )

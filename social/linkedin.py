@@ -25,10 +25,23 @@ DEFAULT_SCOPES = (
 )
 # "little text" reserved characters — unescaped, they format or vanish.
 COMMENTARY_RESERVED = re.compile(r"([\\|{}@\[\]()<>#*_~])")
+# URLs are auto-linked and must not be escaped; #tags become hashtag entities.
+COMMENTARY_TOKEN = re.compile(r"(https?://[^\s<>()\[\]\"']+)|(?<!\w)#(\w+)")
 
 
 def escape_commentary(text: str) -> str:
-    return COMMENTARY_RESERVED.sub(r"\\\1", text)
+    out, pos = [], 0
+    for match in COMMENTARY_TOKEN.finditer(text):
+        out.append(COMMENTARY_RESERVED.sub(r"\\\1", text[pos : match.start()]))
+        if match.group(1):
+            out.append(match.group(1))
+        elif match.group(2).isdigit():
+            out.append("\\#" + match.group(2))
+        else:
+            out.append("{hashtag|\\#|" + match.group(2) + "}")
+        pos = match.end()
+    out.append(COMMENTARY_RESERVED.sub(r"\\\1", text[pos:]))
+    return "".join(out)
 
 
 def build_post(
