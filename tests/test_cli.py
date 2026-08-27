@@ -96,3 +96,39 @@ def test_check_reports_both_networks_and_the_administered_page(env_file, transpo
     assert "bluesky: ok — example.bsky.social (did:plc:abc)" in out
     assert "linkedin: token active, expires 2027-01-01; scopes: a b" in out
     assert "administers urn:li:organization:42 — Radius Red / radiusred (configured)" in out
+
+
+def test_env_sourced_token_keeps_its_expiry_out_of_the_file_so_the_next_run_refreshes(env_file, transport, capsys):
+    # Run 1: the orchestrator injects a (dead) access token; the file's token is stale too.
+    env_file.write_text(env_file.read_text().replace("LINKEDIN_ACCESS_TOKEN_EXPIRES_AT=9999999999\n", ""))
+    transport.expect("POST", "introspectToken", body={"active": False, "status": "expired"})
+    transport.expect("POST", "oauth/v2/accessToken", body={"access_token": "fresh-1", "expires_in": 5183999, "refresh_token": "r-1", "refresh_token_expires_in": 100})
+    transport.expect("POST", "/rest/posts", status=201, headers={"x-restli-id": "urn:li:share:1"})
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "linkedin", "--text", "hi"], transport=transport, environ={"LINKEDIN_ACCESS_TOKEN": "injected-dead"})
+    assert rc == 0
+    text = env_file.read_text()
+    assert "LINKEDIN_ACCESS_TOKEN=old-access\n" in text  # env value never written
+    assert "LINKEDIN_ACCESS_TOKEN_EXPIRES_AT" not in text  # and no expiry beside the stale token
+    assert "LINKEDIN_REFRESH_TOKEN=r-1\n" in text and "LINKEDIN_REFRESH_TOKEN_EXPIRES_AT=" in text
+    assert "NOT persisted for LINKEDIN_ACCESS_TOKEN" in capsys.readouterr().err
+    # Run 2, same file, same injected token: must introspect and refresh again, not trust a phantom expiry.
+    transport.expect("POST", "introspectToken", body={"active": False, "status": "expired"})
+    transport.expect("POST", "oauth/v2/accessToken", body={"access_token": "fresh-2", "expires_in": 5183999, "refresh_token": "r-2", "refresh_token_expires_in": 100})
+    transport.expect("POST", "/rest/posts", status=201, headers={"x-restli-id": "urn:li:share:2"})
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "linkedin", "--text", "hi"], transport=transport, environ={"LINKEDIN_ACCESS_TOKEN": "injected-dead"})
+    assert rc == 0
+    assert transport.calls[-1]["headers"]["Authorization"] == "Bearer fresh-2"
+
+
+def test_parse_callback_handles_urls_and_bare_codes():
+    assert cli.parse_callback("http://localhost:8765/callback?code=abc&state=s1") == ("abc", "s1")
+    assert cli.parse_callback("/callback?code=abc") == ("abc", None)
+    assert cli.parse_callback("rawcode") == ("rawcode", None)
+    assert cli.parse_callback("") == (None, None)
+
+
+def test_pasted_callback_with_wrong_state_is_refused(env_file, refusing_transport, monkeypatch, capsys):
+    monkeypatch.setattr("builtins.input", lambda _: "http://localhost:8765/callback?code=abc&state=forged")
+    rc = cli.main(["--env-file", str(env_file), "auth", "linkedin", "--paste"], transport=refusing_transport, environ={})
+    assert rc == 1
+    assert "state mismatch" in capsys.readouterr().out

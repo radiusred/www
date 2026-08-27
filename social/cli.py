@@ -50,6 +50,12 @@ def store_tokens(creds: Credentials, tokens: dict, now: float) -> None:
         updates["LINKEDIN_REFRESH_TOKEN_EXPIRES_AT"] = str(
             int(now + tokens.get("refresh_token_expires_in", 0))
         )
+    # A token and its expiry are one fact: if the token itself came from the
+    # environment (an orchestrator's copy), do not write its new expiry next
+    # to the file's stale token — the next run would trust it and post 401.
+    for token_key in ("LINKEDIN_ACCESS_TOKEN", "LINKEDIN_REFRESH_TOKEN"):
+        if token_key in creds.from_env:
+            creds.values[f"{token_key}_EXPIRES_AT"] = updates.pop(f"{token_key}_EXPIRES_AT", "")
     skipped = creds.persist(updates)
     if skipped:
         _say(
@@ -189,14 +195,25 @@ def cmd_post(args, creds: Credentials, transport) -> int:
     return 1 if failures else 0
 
 
+def parse_callback(url_or_code: str) -> tuple[str | None, str | None]:
+    """(code, state) from a redirected URL — or (the string itself, None)
+    when a bare code was pasted."""
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(url_or_code).query)
+    if "code" in query:
+        return query["code"][0], query.get("state", [None])[0]
+    return (url_or_code or None), None
+
+
 class _CodeCatcher(http.server.BaseHTTPRequestHandler):
     code: str | None = None
     state: str | None = None
 
+    @classmethod
+    def reset(cls):
+        cls.code = cls.state = None
+
     def do_GET(self):  # noqa: N802 — http.server's name
-        query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-        type(self).code = query.get("code", [None])[0]
-        type(self).state = query.get("state", [None])[0]
+        type(self).code, type(self).state = parse_callback(self.path)
         self.send_response(200)
         self.send_header("Content-Type", "text/plain")
         self.end_headers()
@@ -220,6 +237,7 @@ def cmd_auth_linkedin(args, creds: Credentials, transport) -> int:
     code = None
     if parsed.hostname in ("localhost", "127.0.0.1") and not args.paste:
         print(f"3. Waiting for LinkedIn to redirect to {redirect_uri} …")
+        _CodeCatcher.reset()
         with http.server.HTTPServer((parsed.hostname, parsed.port or 80), _CodeCatcher) as server:
             while _CodeCatcher.code is None:
                 server.handle_request()
@@ -229,8 +247,10 @@ def cmd_auth_linkedin(args, creds: Credentials, transport) -> int:
         code = _CodeCatcher.code
     else:
         pasted = input("3. Paste the redirected URL (or just the code): ").strip()
-        query = urllib.parse.parse_qs(urllib.parse.urlparse(pasted).query)
-        code = query.get("code", [pasted])[0]
+        code, pasted_state = parse_callback(pasted)
+        if pasted_state is not None and pasted_state != state:
+            print("error: state mismatch on the pasted URL — refusing the code")
+            return 1
 
     tokens = client.exchange_code(code, redirect_uri)
     store_tokens(creds, tokens, time.time())
