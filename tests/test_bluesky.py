@@ -65,3 +65,27 @@ def test_failed_login_raises_api_error_with_body(transport):
     client = bluesky.Bluesky(transport, "example.bsky.social", "wrong")
     with pytest.raises(ApiError, match="HTTP 401 .*Invalid identifier"):
         client.login()
+
+
+def test_tag_facets_cover_hashtags_with_byte_offsets_and_strip_the_hash():
+    text = "Shipped #CodeCrew 1.0 — #agentic #OpenSource"
+    tags = bluesky.tag_facets(text)
+    assert [f["features"][0] for f in tags] == [
+        {"$type": "app.bsky.richtext.facet#tag", "tag": "CodeCrew"},
+        {"$type": "app.bsky.richtext.facet#tag", "tag": "agentic"},
+        {"$type": "app.bsky.richtext.facet#tag", "tag": "OpenSource"},
+    ]
+    start = len("Shipped #CodeCrew 1.0 — ".encode())
+    assert tags[1]["index"] == {"byteStart": start, "byteEnd": start + len("#agentic")}
+    assert text.encode()[tags[2]["index"]["byteStart"] : tags[2]["index"]["byteEnd"]] == b"#OpenSource"
+
+
+def test_tag_facets_skip_url_fragments_numbers_and_glued_hashes():
+    text = "issue#45 https://x.example/p#section #1 #2026 #real"
+    assert [f["features"][0]["tag"] for f in bluesky.tag_facets(text)] == ["real"]
+
+
+def test_build_post_merges_link_and_tag_facets_in_byte_order():
+    record = bluesky.build_post("#first https://a.example/ #last", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    kinds = [(f["index"]["byteStart"], f["features"][0]["$type"].rsplit("#", 1)[-1]) for f in record["facets"]]
+    assert kinds == [(0, "tag"), (7, "link"), (7 + len("https://a.example/ "), "tag")]
