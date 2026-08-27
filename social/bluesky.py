@@ -12,6 +12,9 @@ from .transport import ApiError, Response
 DEFAULT_PDS = "https://bsky.social"
 MAX_GRAPHEMES = 300
 URL_RE = re.compile(r"https?://[^\s<>()\[\]\"']+")
+# A tag is "#" plus word characters, not glued to a preceding word character
+# (so a URL fragment or "a#b" is not a tag) and not purely numeric.
+TAG_RE = re.compile(r"(?<!\w)#(\w+)")
 TRAILING_PUNCT = ".,;:!?'\")"
 
 
@@ -21,21 +24,40 @@ def grapheme_len(text: str) -> int:
     return sum(1 for ch in text if not unicodedata.combining(ch) and ch != "‍")
 
 
+def _facet(text: str, start: int, span: str, feature: dict) -> dict:
+    byte_start = len(text[:start].encode("utf-8"))
+    return {
+        "index": {"byteStart": byte_start, "byteEnd": byte_start + len(span.encode("utf-8"))},
+        "features": [feature],
+    }
+
+
 def link_facets(text: str) -> list[dict]:
     """Rich-text facets for every URL in ``text``, with UTF-8 *byte* offsets —
     the protocol's unit, not characters."""
     facets = []
     for match in URL_RE.finditer(text):
         url = match.group().rstrip(TRAILING_PUNCT)
-        start = len(text[: match.start()].encode("utf-8"))
-        end = start + len(url.encode("utf-8"))
-        facets.append(
-            {
-                "index": {"byteStart": start, "byteEnd": end},
-                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}],
-            }
-        )
+        facets.append(_facet(text, match.start(), url, {"$type": "app.bsky.richtext.facet#link", "uri": url}))
     return facets
+
+
+def tag_facets(text: str) -> list[dict]:
+    """Facets for every ``#hashtag`` — without them a tag is plain text and
+    the post reaches nobody who follows the tag. URL fragments are skipped."""
+    url_spans = [(m.start(), m.end()) for m in URL_RE.finditer(text)]
+    facets = []
+    for match in TAG_RE.finditer(text):
+        tag = match.group(1)
+        if tag.isdigit() or any(s <= match.start() < e for s, e in url_spans):
+            continue
+        facets.append(_facet(text, match.start(), match.group(), {"$type": "app.bsky.richtext.facet#tag", "tag": tag}))
+    return facets
+
+
+def facets(text: str) -> list[dict]:
+    """All facets (links, tags), in byte order."""
+    return sorted(link_facets(text) + tag_facets(text), key=lambda f: f["index"]["byteStart"])
 
 
 def build_post(
@@ -57,9 +79,9 @@ def build_post(
         "text": text,
         "createdAt": when.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
     }
-    facets = link_facets(text)
-    if facets:
-        record["facets"] = facets
+    found = facets(text)
+    if found:
+        record["facets"] = found
     if link:
         record["embed"] = {
             "$type": "app.bsky.embed.external",

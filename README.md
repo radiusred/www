@@ -130,11 +130,14 @@ uv run -m social auth linkedin               # re-consent (browser leg, human)
 - `check` logs in to Bluesky, introspects the LinkedIn token (refreshing it
   when it has under a week left, and writing the new tokens back to the env
   file when that is where they came from), and lists the Pages the token
-  administers.
+  administers — writing `LINKEDIN_ORG_URN` to the env file when exactly one
+  Page is administered and the key is not yet set.
 - `post` publishes the same text everywhere by default; Bluesky allows 300
   graphemes, so give it its own copy with `--bluesky-text-file` when the
-  LinkedIn version runs longer. URLs in the text become links; `--link`
-  adds a link card (Bluesky) / article (LinkedIn). Always `--dry-run` first —
+  LinkedIn version runs longer. URLs in the text become links and
+  `#hashtags` become tag facets on Bluesky — without the facet a tag is plain
+  text and reaches nobody, so tag deliberately; `--link` adds a link card
+  (Bluesky) / article (LinkedIn). Always `--dry-run` first —
   it prints the exact request bodies and touches no network. Output is one
   JSON line per network with the post URL.
 - `auth linkedin` is the re-consent playbook: it prints the consent URL,
