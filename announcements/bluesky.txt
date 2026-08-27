@@ -3,4 +3,4 @@ CodeCrew 1.0 is out: agent-driven software delivery on plain GitHub — issues, 
 Project: https://github.com/radiusred/gh-codecrew
 What changed, and how to start: [the 1.0 article](https://www.radiusred.uk/blog/posts/2026-08-27-codecrew-1-0-the-crew-is-staffed-and-the-gates-have-teeth/)
 
-#CodeCrew #AIAgents #OpenSource #DevTools
+#AI #OpenSource #Programming #AIAgents #DevOps
