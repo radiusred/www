@@ -94,9 +94,11 @@ class Credentials:
         for key, value in writable.items():
             if key not in seen:
                 lines.append(f"{key}={value}")
-        self.env_file.parent.mkdir(parents=True, exist_ok=True)
+        self.env_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         tmp = self.env_file.with_suffix(self.env_file.suffix + ".tmp")
-        tmp.write_text("\n".join(lines) + "\n")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as fh:
+            fh.write("\n".join(lines) + "\n")
         os.chmod(tmp, 0o600)
         os.replace(tmp, self.env_file)
         return skipped

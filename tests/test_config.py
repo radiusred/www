@@ -52,3 +52,11 @@ def test_persist_never_writes_values_that_came_from_the_environment(env_file):
 def test_persist_without_a_file_reports_everything_skipped():
     creds = Credentials(values={}, from_env=set(), env_file=None)
     assert creds.persist({"A": "1", "B": "2"}) == ["A", "B"]
+
+
+def test_persist_creates_the_file_and_directory_private_from_the_start(tmp_path):
+    target = tmp_path / "cfg" / "social.env"
+    creds = Credentials(values={}, from_env=set(), env_file=target)
+    assert creds.persist({"A": "1"}) == []
+    assert oct(os.stat(target).st_mode & 0o777) == "0o600"
+    assert oct(os.stat(target.parent).st_mode & 0o777) == "0o700"
