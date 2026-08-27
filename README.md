@@ -103,3 +103,48 @@ distro reinstall, intentional regeneration of `/etc/ssh/ssh_host_*_key`):
 3. Trigger the `CI Build` workflow via `workflow_dispatch` (or merge a
    no-op docs change). The workflow fails fast if the secret is empty,
    so a missing rotation is loud.
+
+## Posting to social accounts
+
+Announcements go out from Radius Red's own accounts — `radiusred.bsky.social`
+and the LinkedIn Page `linkedin.com/company/radiusred` — through the `social`
+package in this repo. It is stdlib-only; run it with `uv run -m social`.
+
+**Credentials never live in this tree.** They are read from the environment
+first, then from `~/.config/codecrew/social.env` (mode 0600; `--env-file` to
+point elsewhere). Keys: `BSKY_HANDLE`, `BSKY_APP_PASSWORD`,
+`LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_ACCESS_TOKEN`,
+`LINKEDIN_REFRESH_TOKEN`, `LINKEDIN_ORG_URN`; optional `LINKEDIN_VERSION`
+(API version, `YYYYMM`), `LINKEDIN_REDIRECT_URI`, `BSKY_PDS`. The two
+`*_EXPIRES_AT` keys are maintained by the tool.
+
+```sh
+uv run -m social check                       # prove auth without posting
+uv run -m social post --to bluesky --to linkedin \
+    --text-file announce.txt --link URL --title "…" --dry-run   # show the requests
+uv run -m social post --to bluesky --to linkedin \
+    --text-file announce.txt --link URL --title "…"             # send them
+uv run -m social auth linkedin               # re-consent (browser leg, human)
+```
+
+- `check` logs in to Bluesky, introspects the LinkedIn token (refreshing it
+  when it has under a week left, and writing the new tokens back to the env
+  file when that is where they came from), and lists the Pages the token
+  administers.
+- `post` publishes the same text everywhere by default; Bluesky allows 300
+  graphemes, so give it its own copy with `--bluesky-text-file` when the
+  LinkedIn version runs longer. URLs in the text become links; `--link`
+  adds a link card (Bluesky) / article (LinkedIn). Always `--dry-run` first —
+  it prints the exact request bodies and touches no network. Output is one
+  JSON line per network with the post URL.
+- `auth linkedin` is the re-consent playbook: it prints the consent URL,
+  catches the redirect on `localhost:8765` (or `--paste` the code), exchanges
+  it, and stores the tokens. Someone signed in to LinkedIn as a Page admin
+  has to click through; no agent can.
+
+Rotation calendar: LinkedIn access tokens last 60 days and refresh
+themselves; the refresh token lasts a year from the last consent, after which
+`auth linkedin` is needed again (`check` prints the date). Bluesky app
+passwords do not expire; revoke and re-mint from the account's settings. The
+LinkedIn API version pinned in `social/linkedin.py` retires after about a
+year — a `426 NONEXISTENT_VERSION` means bump it.
