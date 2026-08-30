@@ -1,6 +1,7 @@
-We let an orchestration platform drive CodeCrew: 4 cycles, 5 milestones, 68 findings — and our biggest cost was the one role with no contract. So we wrote it one.
+Can [CodeCrew](https://github.com/radiusred/gh-codecrew), an agentic coding framework, co-exist with [Paperclip](https://github.com/paperclipai/paperclip)? We ran one inside the other to see.
 
-Project: https://github.com/radiusred/gh-codecrew
-Field report: [four cycles](https://www.radiusred.uk/blog/posts/2026-08-30-four-cycles-on-a-real-orchestration-platform/)
+After a lot of work on CodeCrew: yes. Your task tracker keeps the chat, your repo keeps the record.
+
+Read the [report](https://www.radiusred.uk/blog/posts/2026-08-30-four-cycles-on-a-real-orchestration-platform/) to find out how.
 
 #AI #OpenSource #Programming #AIAgents #BuildInPublic

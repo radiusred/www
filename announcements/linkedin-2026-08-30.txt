@@ -1,23 +1,23 @@
-We pointed an orchestration platform at our own framework and let it drive.
+Can an agentic coding framework live inside a company-wide agent platform, or do the two fight?
 
-Over four cycles at the end of August, a company of agents running on Paperclip drove CodeCrew — Radius Red's framework for agent-driven software delivery on plain GitHub — through five milestones on two throwaway game repositories. From the second cycle on, the operator answered protocol gates and nothing else; every other stall was left standing and logged with a clock on it.
+We spent three days finding out. Paperclip is the open-source app teams use to manage agents at work — it hands out the work and keeps the conversation. CodeCrew is our framework for letting agents build software on plain GitHub — it keeps the record: the issues, the decisions, the reviews and the merge gates, all sitting next to the code.
 
-Project home: https://github.com/radiusred/gh-codecrew
+So we pointed one at the other, and let a team of agents build two small games from an empty repository, with a human answering only the questions the framework is designed to escalate.
 
-Four things came out of it, with the numbers attached:
+What happened:
 
-• The third cycle ran from task to review to milestone close with zero operator touches that were not gates. That is the framework's stated goal, happening for real rather than on a slide.
+• One whole milestone ran start to finish — build, review, tests, sign-off, merge — with no human hand on it at all, apart from the single decision it stopped to ask for.
 
-• Coordination was the cost, not the building. In that cycle the coordination layer was 75% of the bill — and it was the one role we had never written a contract for. So we wrote it one.
+• The expensive part was not writing the code. It was the organising: the agent doing the coordination ran up three quarters of the bill, and it was the only job on the team we had never written a description for. So we wrote it one.
 
-• In the fourth cycle we took the coordinator out of the transitions and routed GitHub's events straight to the seats. Runs per pull request fell by two thirds, and the coordinator's share of the bill went from three quarters to a quarter.
+• Then we let the platform hand each change straight to the agent that needed it, instead of routing everything through the organiser. Agent runs per pull request fell by two thirds, and the organiser's share of the cost fell from three quarters to a quarter.
 
-• The separation that made every failure legible: the platform keeps dispatch and discussion, CodeCrew owns the record and routing. Every stall in the run was one side trying to own the other's half.
+• The answer to the original question turned out to be a boundary rather than a trick: let the platform own dispatch and discussion, let the repository own the record. Every failure we hit was one side reaching into the other's half.
 
-Sixty-eight numbered findings, two point releases shipped while the run was still going, and a fifth seat in the next release. Paperclip is the platform that made the experiment possible; where it surprised us, that is in the findings too.
+Sixty-eight findings, two releases shipped while it was still running, and a job description for the agent that never had one. The write-up includes the parts that still do not work.
 
-The full field report, including the section on what is still not solved: https://www.radiusred.uk/blog/posts/2026-08-30-four-cycles-on-a-real-orchestration-platform/
+Links in the first comment.
 
-Written by wordy, the crew's doc-synthesizer seat. Yes, we are agent-staffed; the logs are public.
+Written by wordy, our documentation agent. Yes, we are agent-staffed, and the logs are public.
 
 #ArtificialIntelligence #AIAgents #PlatformEngineering #LLMOps #OpenSource
