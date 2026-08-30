@@ -83,3 +83,25 @@ def test_escape_commentary_renders_hashtags_as_entities_and_leaves_urls_alone():
     assert linkedin.escape_commentary(text) == (
         "Ship \\(it\\) {hashtag|\\#|CodeCrew} https://x.example/p_1#frag \\#2026 and {hashtag|\\#|DevTools}"
     )
+
+
+def test_build_comment_keeps_urls_unescaped_and_refuses_empty():
+    body = linkedin.build_comment("urn:li:organization:42", "urn:li:share:99", "  Links: https://x.example/p (here)  ")
+    assert body == {
+        "actor": "urn:li:organization:42",
+        "object": "urn:li:share:99",
+        "message": {"text": "Links: https://x.example/p (here)"},
+    }
+    with pytest.raises(ValueError, match="empty"):
+        linkedin.build_comment("urn:li:organization:42", "urn:li:share:99", "   ")
+
+
+def test_comment_posts_to_the_encoded_social_actions_path(transport):
+    transport.expect("POST", "/rest/socialActions/", status=201, headers={"x-restli-id": "urn:li:comment:(urn:li:share:99,1)"})
+    client = linkedin.LinkedIn(transport, "cid", "csecret", "tok", version="202608")
+    body = linkedin.build_comment("urn:li:organization:42", "urn:li:share:99", "https://x.example/p")
+    result = client.comment(body)
+    assert result == {"urn": "urn:li:comment:(urn:li:share:99,1)", "object": "urn:li:share:99"}
+    call = transport.calls[0]
+    assert call["url"] == "https://api.linkedin.com/rest/socialActions/urn%3Ali%3Ashare%3A99/comments"
+    assert call["headers"]["LinkedIn-Version"] == "202608"

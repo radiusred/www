@@ -74,6 +74,21 @@ def build_post(
     return body
 
 
+
+def build_comment(actor: str, share_urn: str, text: str) -> dict:
+    """A comment on a share. Unlike a post's commentary this is plain text —
+    no little-text escaping — so URLs survive, which is the point of it."""
+    text = text.strip()
+    if not text:
+        raise ValueError("comment text is empty")
+    return {"actor": actor, "object": share_urn, "message": {"text": text}}
+
+
+def comment_path(share_urn: str) -> str:
+    """socialActions keys on the URL-encoded share URN."""
+    return f"socialActions/{urllib.parse.quote(share_urn, safe='')}/comments"
+
+
 class LinkedIn:
     def __init__(
         self,
@@ -184,6 +199,17 @@ class LinkedIn:
 
     def post_request(self, body: dict) -> dict:
         return {"method": "POST", "url": f"{API}/rest/posts", "body": body}
+
+    def comment_request(self, body: dict) -> dict:
+        return {"method": "POST", "url": f"{API}/rest/{comment_path(body['object'])}", "body": body}
+
+    def comment(self, body: dict) -> dict:
+        """Comment on a share as the organization — the first-comment slot
+        where a LinkedIn post's links belong (inline URLs cost the post
+        reach). ``build_comment`` makes the body."""
+        resp = self._rest("LinkedIn comment failed", "POST", comment_path(body["object"]), body)
+        urn = resp.headers.get("x-restli-id") or resp.json().get("$URN", "")
+        return {"urn": urn, "object": body["object"]}
 
     def post(self, body: dict) -> dict:
         resp = self._rest("LinkedIn post failed", "POST", "posts", body)

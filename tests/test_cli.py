@@ -132,3 +132,29 @@ def test_pasted_callback_with_wrong_state_is_refused(env_file, refusing_transpor
     rc = cli.main(["--env-file", str(env_file), "auth", "linkedin", "--paste"], transport=refusing_transport, environ={})
     assert rc == 1
     assert "state mismatch" in capsys.readouterr().out
+
+
+def test_comment_dry_run_prints_the_request_and_touches_no_network(env_file, refusing_transport, capsys):
+    rc = cli.main(
+        ["--env-file", str(env_file), "comment", "--urn", "urn:li:share:99",
+         "--text", "Links: https://x.example/p", "--dry-run"],
+        transport=refusing_transport, environ={},
+    )
+    assert rc == 0
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["network"] == "linkedin" and doc["dry_run"] is True
+    assert doc["request"]["url"] == "https://api.linkedin.com/rest/socialActions/urn%3Ali%3Ashare%3A99/comments"
+    assert doc["request"]["body"]["message"]["text"] == "Links: https://x.example/p"
+    assert doc["request"]["body"]["actor"] == "urn:li:organization:42"
+
+
+def test_comment_publishes_and_prints_the_comment_urn(env_file, transport, capsys):
+    transport.expect("POST", "/rest/socialActions/", status=201, headers={"x-restli-id": "urn:li:comment:(urn:li:share:99,1)"})
+    rc = cli.main(
+        ["--env-file", str(env_file), "comment", "--urn", "urn:li:share:99", "--text", "https://x.example/p"],
+        transport=transport, environ={},
+    )
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "network": "linkedin", "urn": "urn:li:comment:(urn:li:share:99,1)", "object": "urn:li:share:99",
+    }

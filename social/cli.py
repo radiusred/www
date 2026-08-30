@@ -195,6 +195,28 @@ def cmd_post(args, creds: Credentials, transport) -> int:
     return 1 if failures else 0
 
 
+def cmd_comment(args, creds: Credentials, transport) -> int:
+    """The first comment on a LinkedIn share — where a post's links go, since
+    inline URLs cost the post reach (announcements/README.md)."""
+    text = Path(args.text_file).read_text() if args.text_file else args.text
+    if not text:
+        raise SystemExit("error: give --text or --text-file")
+    org = creds.get("LINKEDIN_ORG_URN") if args.dry_run else creds.require("LINKEDIN_ORG_URN")
+    body = linkedin.build_comment(org or "urn:li:organization:<id>", args.urn, text)
+    if args.dry_run:
+        client = linkedin.LinkedIn(transport, "", "", version=creds.get("LINKEDIN_VERSION", linkedin.DEFAULT_VERSION))
+        print(json.dumps({"network": "linkedin", "dry_run": True, "request": client.comment_request(body)}, indent=2, ensure_ascii=False))
+        return 0
+    client = linkedin_client(creds, transport)
+    try:
+        ensure_linkedin_token(creds, client)
+        print(json.dumps({"network": "linkedin", **client.comment(body)}))
+    except ApiError as err:
+        print(json.dumps({"network": "linkedin", "error": str(err)}))
+        return 1
+    return 0
+
+
 def parse_callback(url_or_code: str) -> tuple[str | None, str | None]:
     """(code, state) from a redirected URL — or (the string itself, None)
     when a bare code was pasted."""
@@ -279,6 +301,12 @@ def build_parser() -> argparse.ArgumentParser:
     post.add_argument("--description", help="description for the link card")
     post.add_argument("--dry-run", action="store_true", help="print the requests; send nothing")
 
+    comment = sub.add_parser("comment", help="comment on a LinkedIn share (the first-comment link slot)")
+    comment.add_argument("--urn", required=True, help="the share URN the post printed, e.g. urn:li:share:123")
+    comment.add_argument("--text")
+    comment.add_argument("--text-file")
+    comment.add_argument("--dry-run", action="store_true", help="print the request; send nothing")
+
     auth = sub.add_parser("auth", help="re-consent a network (browser leg for a human)")
     auth_sub = auth.add_subparsers(dest="network", required=True)
     li = auth_sub.add_parser("linkedin")
@@ -297,6 +325,8 @@ def main(argv: list[str] | None = None, transport=None, environ: dict[str, str] 
             return cmd_check(args, creds, transport)
         if args.command == "post":
             return cmd_post(args, creds, transport)
+        if args.command == "comment":
+            return cmd_comment(args, creds, transport)
         if args.command == "auth":
             return cmd_auth_linkedin(args, creds, transport)
     except MissingCredential as err:
