@@ -1,0 +1,7 @@
+Links:
+
+CodeCrew, the framework: https://github.com/radiusred/gh-codecrew
+
+Paperclip, the platform we ran it inside: https://github.com/paperclipai/paperclip
+
+The full write-up, including what still does not work: https://www.radiusred.uk/blog/posts/2026-08-30-four-cycles-on-a-real-orchestration-platform/
