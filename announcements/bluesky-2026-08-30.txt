@@ -1,0 +1,6 @@
+We let an orchestration platform drive CodeCrew: 4 cycles, 5 milestones, 68 findings — and our biggest cost was the one role with no contract. So we wrote it one.
+
+Project: https://github.com/radiusred/gh-codecrew
+Field report: [four cycles](https://www.radiusred.uk/blog/posts/2026-08-30-four-cycles-on-a-real-orchestration-platform/)
+
+#AI #OpenSource #Programming #AIAgents #BuildInPublic
