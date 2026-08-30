@@ -125,6 +125,8 @@ uv run -m social post --to bluesky --to linkedin \
 uv run -m social post --to bluesky --to linkedin \
     --text-file announce.txt --link URL --title "…"             # send them
 uv run -m social auth linkedin               # re-consent (browser leg, human)
+uv run -m social comment --urn urn:li:share:123 \
+    --text-file links.txt                    # the first comment on a LinkedIn share
 ```
 
 - `check` logs in to Bluesky, introspects the LinkedIn token (refreshing it
@@ -143,6 +145,12 @@ uv run -m social auth linkedin               # re-consent (browser leg, human)
   kept in `announcements/`. Always `--dry-run` first —
   it prints the exact request bodies and touches no network. Output is one
   JSON line per network with the post URL.
+- `comment` posts a comment on a LinkedIn share as the Page, given the URN
+  `post` printed. It is where a LinkedIn post's links go: inline URLs cost the
+  post reach, so the body says "links in the first comment" and this command
+  supplies it, immediately after. Comment text is plain — URLs are not escaped
+  — and `--dry-run` prints the request like `post` does. The standing rules for
+  announcements, including this one, are in `announcements/README.md`.
 - `auth linkedin` is the re-consent playbook: it prints the consent URL,
   catches the redirect on `localhost:8765` (or `--paste` the code), exchanges
   it, and stores the tokens. Someone signed in to LinkedIn as a Page admin
