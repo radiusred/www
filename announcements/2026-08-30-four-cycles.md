@@ -359,6 +359,25 @@ only after the gate on www#53 is resolved.
 
 ## Result
 
-_Not posted. Awaiting the operator's `**Gate resolved:**` on
-[www#53](https://github.com/radiusred/www/issues/53); the post URLs and the
-comment URN land here before this PR merges._
+Posted 2026-08-30 after the operator approved
+[PR #54](https://github.com/radiusred/www/pull/54) at `8571070` and resolved the
+gate on [www#53](https://github.com/radiusred/www/issues/53) — *"**Gate
+resolved:** post as approved in the PR"*. The three commands above, without
+`--dry-run`, in that order:
+
+- **Bluesky**, 23:06:41Z —
+  <https://bsky.app/profile/radiusred.bsky.social/post/3mudiymckto2e>
+  (`at://did:plc:tkktcn7p42upz6lu6qwtmps2/app.bsky.feed.post/3mudiymckto2e`).
+  Verified through `getPosts`: author `radiusred.bsky.social`, eight facets as
+  measured, link card on the project home.
+- **LinkedIn**, 23:06:47Z —
+  <https://www.linkedin.com/feed/update/urn:li:share:7499965874292854784/>
+  (`urn:li:share:7499965874292854784`). Verified through the Posts API: author
+  `urn:li:organization:106551263` (Radius Red), `PUBLISHED` / `PUBLIC`, and
+  **no `content` key** — the post carries no link card, as intended.
+- **The first comment**, 23:06:52Z — comment `7499965896342331392` on that
+  share, five seconds after it. Verified through `socialActions`: one comment
+  on the share, actor `urn:li:organization:106551263`, carrying the three
+  links.
+
+No leg failed and none was retried.
