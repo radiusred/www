@@ -104,13 +104,7 @@ nav = [
       { "Contributing" = "projects/ha-sinkhole/contributing.md" },
       { "Security" = "projects/ha-sinkhole/security.md" },
     ] },
-    { "gh-codecrew" = [
-      { "Overview" = "projects/gh-codecrew/index.md" },
-      { "Your first milestone" = "projects/gh-codecrew/first-milestone.md" },
-      { "Founding decisions" = "projects/gh-codecrew/founding-decisions.md" },
-      { "GSD vs. \"just let the model orchestrate\": an assessment from inside the machine" = "projects/gh-codecrew/gsd-vs-frontier-orchestration.md" },
-      { "Identities: running solo, staffing a crew" = "projects/gh-codecrew/identities.md" },
-    ] },
+    { "gh-codecrew" = "projects/gh-codecrew/index.md" },
     # END_PROJECTS_NAV
   ] },
 ]

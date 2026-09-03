@@ -10,6 +10,11 @@ A project may list `exclude` paths (relative to its docs/ dir, e.g.
 "milestones/") to leave out of the sync. Links into an excluded path are
 rewritten to GitHub URLs, like any other non-synced file.
 
+A project marked `readme_only` syncs just README.md -> <project>/index.md:
+CONTRIBUTING.md, SECURITY.md and the docs/ tree are left out, and links from
+the README into them are rewritten to GitHub URLs like any other non-synced
+file. Use it when the project's docs have a canonical home elsewhere.
+
 Markdown links and HTML <img src> in synced .md files are rewritten so:
   - links to other synced files resolve correctly under docs/projects/<name>/
   - links to non-synced files become absolute GitHub URLs (blob/ or raw/)
@@ -33,8 +38,9 @@ PROJECTS = [
     {"name": "tradedesk-dukascopy", "repo": "radiusred/tradedesk-dukascopy", "branch": "main"},
     {"name": "tradedesk-miner", "repo": "radiusred/tradedesk-miner", "branch": "main"},
     {"name": "ha-sinkhole", "repo": "radiusred/ha-sinkhole", "branch": "main"},
-    # Per-milestone records are internal project history, not www material.
-    {"name": "gh-codecrew", "repo": "radiusred/gh-codecrew", "branch": "main", "exclude": ["milestones/"]},
+    # CodeCrew's docs live at https://codecrew.works; www carries only the
+    # README as a landing page and points there for everything else.
+    {"name": "gh-codecrew", "repo": "radiusred/gh-codecrew", "branch": "main", "readme_only": True},
 ]
 
 DEST_BASE = Path("docs/projects")
@@ -50,6 +56,9 @@ ROOT_FILE_MAP = {
     "CONTRIBUTING.md": "contributing.md",
     "SECURITY.md": "security.md",
 }
+
+# What a readme_only project promotes: the README and nothing else.
+README_ONLY_FILE_MAP = {"README.md": "index.md"}
 
 # Image extensions get rewritten to raw.githubusercontent.com so they render.
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico"}
@@ -78,6 +87,15 @@ def split_anchor(path):
     return path, ""
 
 
+def root_file_map(project):
+    """The root-of-repo files this project promotes, keyed by source name."""
+    return README_ONLY_FILE_MAP if project.get("readme_only") else ROOT_FILE_MAP
+
+
+def syncs_docs_tree(project):
+    return not project.get("readme_only")
+
+
 def is_excluded(docs_rel, project):
     """True if `docs_rel` (relative to the upstream docs/ dir) falls under one
     of the project's `exclude` entries. A trailing slash marks a subtree."""
@@ -95,9 +113,10 @@ def map_to_dest(repo_path, project):
     'sub/bar.md'). When None, the path doesn't sync — caller should emit a
     GitHub URL using the returned repo_path.
     """
-    if repo_path in ROOT_FILE_MAP:
-        return ROOT_FILE_MAP[repo_path], repo_path
-    if repo_path.startswith("docs/"):
+    files = root_file_map(project)
+    if repo_path in files:
+        return files[repo_path], repo_path
+    if repo_path.startswith("docs/") and syncs_docs_tree(project):
         docs_rel = repo_path[len("docs/"):]
         if is_excluded(docs_rel, project):
             return None, repo_path
@@ -278,7 +297,7 @@ def sync_project(project):
     copied = 0
 
     # Promoted root files.
-    for src_name, dest_name in ROOT_FILE_MAP.items():
+    for src_name, dest_name in root_file_map(project).items():
         src_path = src / src_name
         if src_path.is_file():
             content = src_path.read_text(encoding="utf-8")
@@ -288,7 +307,7 @@ def sync_project(project):
 
     # docs/ tree (subtree preserved).
     docs_src = src / "docs"
-    if docs_src.is_dir():
+    if syncs_docs_tree(project) and docs_src.is_dir():
         for path in sorted(docs_src.rglob("*")):
             rel = path.relative_to(docs_src)
             if is_excluded(rel.as_posix(), project):
