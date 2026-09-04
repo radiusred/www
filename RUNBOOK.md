@@ -11,9 +11,14 @@ for authoring; this file is only about serving it.
 - `https://www.radiusred.uk` is the canonical host. The apex
   `radiusred.uk` and all `http://` requests 301-redirect to it.
 - Deploys come from this repo's CI (`.github/workflows/docs.yml`): every
-  push to `main` (and a daily scheduled run) builds the site and rsyncs
-  `site/` to the VPS as the `live` user. No server-side action is needed
-  for content changes.
+  push to `main` (and a daily scheduled run) builds the site and publishes
+  `site/` to GitHub Pages through `actions/upload-pages-artifact` and
+  `actions/deploy-pages` (the `github-pages` environment). The default
+  Pages URL is https://radiusred.github.io/www/; the VPS no longer receives
+  deploys and is retired under radiusred/ops#4 — until then the sections
+  below still describe it. The repo's Pages build type must be `workflow`
+  (`gh api repos/radiusred/www/pages --jq .build_type`); on `legacy`
+  GitHub's own Jekyll build of the repo root races the deploy.
 
 ## TLS certificates
 
@@ -79,6 +84,9 @@ workflow (or push to `main`) to deploy the site content.
 
 ## History
 
+- **2026-09-04** — the CI deploy moved from rsync over SSH to GitHub
+  Pages actions (radiusred/www#62, milestone radiusred/ops#4). DNS still
+  points at the VPS until radiusred/infrastructure#251 lands.
 - **2026-08-03** — migrated from ZeroSSL (expired, free plan couldn't
   renew) to Let's Encrypt; added the `radiusred.uk` apex DNS record and
   included it in the certificate with an apex→www redirect. Server config
