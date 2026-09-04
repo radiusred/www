@@ -67,43 +67,6 @@ We evaluated three options...
 
 - `uv sync && uv run zensical serve` should create a local site on localhost:8000
 
-## Deploy Host Key (`WWW_VPS_HOST_KEY`)
-
-The `CI Build` workflow pins the SSH host key of the nginx VPS via the
-`WWW_VPS_HOST_KEY` repository secret rather than fetching it dynamically with
-`ssh-keyscan` at deploy time. This prevents a MITM that swaps the host
-fingerprint from being silently trusted by the runner.
-
-The secret value is the verbatim public key line for the VPS, exactly as it
-would appear in `~/.ssh/known_hosts`:
-
-```
-129.121.91.205 ssh-ed25519 AAAA...
-```
-
-Multiple lines are supported (e.g. ed25519 + rsa).
-
-### Rotation procedure
-
-Rotate `WWW_VPS_HOST_KEY` whenever the VPS host key changes (host rebuild,
-distro reinstall, intentional regeneration of `/etc/ssh/ssh_host_*_key`):
-
-1. From a trusted network, SSH to the VPS as ops and capture the new host
-   key(s):
-   ```bash
-   ssh-keyscan -t ed25519,rsa 129.121.91.205
-   ```
-   Cross-check the fingerprint against the host directly
-   (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the VPS) before
-   trusting the output.
-2. Update the GitHub secret:
-   - GitHub → repo → Settings → Secrets and variables → Actions →
-     `WWW_VPS_HOST_KEY` → Update.
-   - Paste the full `ssh-keyscan` output.
-3. Trigger the `CI Build` workflow via `workflow_dispatch` (or merge a
-   no-op docs change). The workflow fails fast if the secret is empty,
-   so a missing rotation is loud.
-
 ## Posting to social accounts
 
 Announcements go out from Radius Red's own accounts — `radiusred.bsky.social`
