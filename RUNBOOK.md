@@ -95,9 +95,10 @@ There is no server to rebuild. If Pages is ever disabled on the repo:
   deliberately left on the VPS for the operator (operator decisions on
   radiusred/www#64). `ops/provision-vps.sh` was deleted from this repo
   (last present at 7e6985b — re-provisioning, should it ever be wanted,
-  starts from that commit) and the `WWW_SSH_DEPLOY_KEY` /
-  `WWW_VPS_HOST_KEY` repo secrets are the operator's to delete: the
-  implementer App's token cannot touch Actions secrets.
+  starts from that commit). The `WWW_SSH_DEPLOY_KEY` and
+  `WWW_VPS_HOST_KEY` repo secrets were deleted by the operator on
+  2026-09-04 (the implementer App's token cannot touch Actions secrets);
+  the repo has no Actions secrets left.
 - **2026-09-04** — the CI deploy moved from rsync over SSH to GitHub
   Pages actions (radiusred/www#62, milestone radiusred/ops#4). DNS still
   points at the VPS until radiusred/infrastructure#251 lands.
