@@ -29,18 +29,53 @@ MAX_WEIGHTED = 280
 URL_WEIGHT = 23
 LIGHT_RANGES = ((0, 4351), (8192, 8205), (8208, 8223), (8242, 8247))
 URL_RE = re.compile(r"https?://[^\s<>()\[\]\"']+")
-# A bare ``label.tld[/path]`` X may autolink (``radiusred.uk``). Without
-# twitter-text's TLD table the guard cannot know whether X will, so a
-# candidate is weighed as the larger of its literal weight and 23: never
-# under. Not preceded by a word character, ``@`` (an address), ``/`` or a
-# dot; labels are Unicode letters and digits with hyphens (twitter-text
-# accepts IDN labels); the final label is letters (an ASCII or IDN TLD) or
-# punycode ``xn--…``, never digits, so a version number is not a domain.
-BARE_URL_RE = re.compile(
-    r"(?<![\w@./-])(?:[^\W_](?:[^\W_]|-){0,62}\.)+(?:xn--[a-z0-9-]+|[^\W\d_]{2,63})"
-    r"(?:/[^\s<>()\[\]\"']*)?(?![\w-])",
-    re.IGNORECASE,
+# Bare domains (``radiusred.uk``): X autolinks them by twitter-text's rule,
+# mirrored here from the js sources — src/extractUrlsWithIndices.js and
+# src/regexp/{extractUrl,validUrlPrecedingChars,validDomain,validSubdomain,
+# validDomainName,validDomainChars,invalidDomainChars,punct,spacesGroup,
+# invalidCharsGroup,directionalMarkersGroup,validAsciiDomain,latinAccentChars,
+# validPunycode,validGTLD,validCCTLD,invalidUrlWithoutProtocolPrecedingChars}.js.
+# ``(preceding)(domain)`` is scanned left to right, match by match; a match
+# whose preceding character is ``-``, ``_``, ``.`` or ``/`` is skipped whole;
+# inside a kept match every ``validAsciiDomain`` (Latin labels, then a TLD)
+# is a link. Each link is weighed at the larger of its literal weight and
+# 23, so the guard never under-counts. The ASCII TLD is any run of letters:
+# a superset of twitter-text's list, safe because the list's lookahead
+# forbids a letter after a real TLD, and robust to TLDs added since. The
+# non-ASCII TLDs are twitter-text's own list, because a non-ASCII superset
+# could swallow a following letter that X would count on its own.
+_PUNCT = r"!'#%&()*+,\-./:;<=>?@\[\]^_{|}~$"
+_SPACES = "\\t-\\r \\x85\\xa0\\u1680\\u180e\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000"
+_INVALID = "\\ufffe\\ufeff\\uffff"
+_DIRECTIONAL = "\\u202a-\\u202e\\u061c\\u200e\\u200f\\u2066-\\u2069"
+_DC = f"[^{_PUNCT}{_SPACES}{_INVALID}{_DIRECTIONAL}]"  # validDomainChars
+LATIN_ACCENT = (  # latinAccentChars.js, verbatim
+    "\\xc0-\\xd6\\xd8-\\xf6\\xf8-\\xff\\u0100-\\u024f\\u0253\\u0254\\u0256\\u0257\\u0259\\u025b\\u0263"
+    "\\u0268\\u026f\\u0272\\u0289\\u028b\\u02bb\\u0300-\\u036f\\u1e00-\\u1eff"
 )
+UNICODE_TLDS = (  # the non-ASCII entries of validGTLD.js and validCCTLD.js
+    "vermögensberatung vermögensberater சிங்கப்பூர் موريتانيا السعودية католик اتصالات "
+    "البحرين الجزائر العليان كاثوليك موبايلي پاکستان இந்தியா москва онлайн ابوظبي ارامكو "
+    "الاردن المغرب امارات فلسطين مليسيا भारतम् இலங்கை ファッション ایران بازار بھارت سودان "
+    "سورية همراه भारोत संगठन বাংলা భారత్ ഭാരതം 嘉里大酒店 дети сайт بارت بيتك تونس شبكة عراق "
+    "عمان موقع ڀارت भारत ভারত ভাৰত ਭਾਰਤ ભારત ଭାରତ ಭಾರತ ලංකා クラウド グーグル ポイント 大众汽车 组织机构 電訊盈科 "
+    "香格里拉 бел ком мкд мон орг рус срб укр қаз հայ קום عرب قطر كوم مصر कॉम नेट คอม ไทย ລາວ "
+    "みんな ストア セール 中文网 天主教 我爱你 新加坡 淡马锡 诺基亚 飞利浦 ελ ευ бг ею рф გე コム 世界 中信 中国 中國 企业 佛山 信息 健康 "
+    "八卦 公司 公益 台湾 台灣 商城 商店 商标 嘉里 在线 大拿 娱乐 家電 工行 广东 微博 慈善 手机 手表 招聘 政务 政府 新闻 时尚 書籍 机构 游戏 澳門 "
+    "点看 珠宝 移动 网址 网店 网站 网络 联通 谷歌 购物 通販 集团 食品 餐厅 香港 닷넷 닷컴 삼성 한국 "
+).split()
+_TLD = (
+    "(?:(?:" + "|".join(UNICODE_TLDS) + "|[a-zA-Z]{2,})(?![0-9a-zA-Z@+-])"
+    "|xn--[\\-0-9a-zA-Z]+)"
+)
+_SUBDOMAIN = f"(?:(?:{_DC}(?:[_-]|{_DC})*)?{_DC}\\.)"
+_DOMAIN_NAME = f"(?:(?:{_DC}(?:-|{_DC})*)?{_DC}\\.)"
+BARE_DOMAIN_RE = re.compile(
+    f"(?P<before>^|[^A-Za-z0-9@\\uff20$#\\uff03{_INVALID}])"
+    f"(?P<domain>{_SUBDOMAIN}*{_DOMAIN_NAME}{_TLD})"
+)
+ASCII_DOMAIN_RE = re.compile(f"(?:[\\-a-zA-Z0-9{LATIN_ACCENT}]+\\.)+{_TLD}")
+_SKIP_BEFORE = ("-", "_", ".", "/")  # invalidUrlWithoutProtocolPrecedingChars
 TRAILING_PUNCT = ".,;:!?'\")"
 
 # The emoji set is Unicode's ``Emoji=Yes`` property (emoji-data.txt, 15.1),
@@ -191,19 +226,32 @@ def _weigh(text: str) -> int:
     return total
 
 
+def bare_domains(text: str) -> list[tuple[int, int]]:
+    """(start, end) of every bare domain twitter-text's protocol-less rule
+    autolinks in ``text``: its scan, left to right, match by match."""
+    found = []
+    pos = 0
+    while (match := BARE_DOMAIN_RE.search(text, pos)) is not None:
+        pos = match.end()
+        if match.group("before") in _SKIP_BEFORE:
+            continue
+        start = match.start("domain")
+        for ascii_domain in ASCII_DOMAIN_RE.finditer(match.group("domain")):
+            found.append((start + ascii_domain.start(), start + ascii_domain.end()))
+    return found
+
+
 def _url_spans(text: str) -> list[tuple[int, int, int]]:
     """(start, end, weight) for every URL: 23 for one with a scheme, the
-    larger of literal and 23 for a bare domain candidate."""
+    larger of literal and 23 for a bare domain X would autolink."""
     spans = []
+    masked = text
     for match in URL_RE.finditer(text):
         url = match.group().rstrip(TRAILING_PUNCT)
         spans.append((match.start(), match.start() + len(url), URL_WEIGHT))
-    for match in BARE_URL_RE.finditer(text):
-        candidate = match.group().rstrip(TRAILING_PUNCT)
-        start, end = match.start(), match.start() + len(candidate)
-        if any(s <= start < e for s, e, _ in spans):
-            continue
-        spans.append((start, end, max(_weigh(candidate), URL_WEIGHT)))
+        masked = masked[: match.start()] + " " * len(match.group()) + masked[match.end() :]
+    for start, end in bare_domains(masked):
+        spans.append((start, end, max(_weigh(text[start:end]), URL_WEIGHT)))
     return sorted(spans)
 
 
