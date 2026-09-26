@@ -73,7 +73,9 @@ The operator asks for research rather than instinct.
 
 ## Credentials
 
-Never in this tree. `uv run -m social check` proves them without posting;
-`--dry-run` prints the exact request bodies and touches no network. Both
-outputs are captured into the announcement file, and scanned for tokens before
-they are committed.
+Never in this tree: they live in `~/.config/radiusred/social.env` (see the
+main README, "Posting to social accounts"; the old `~/.config/codecrew/`
+location is read only until the file is moved). `uv run -m social check`
+proves them without posting; `--dry-run` prints the exact request bodies and
+touches no network. Both outputs are captured into the announcement file, and
+scanned for tokens before they are committed.
