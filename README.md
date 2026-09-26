@@ -128,7 +128,11 @@ uv run -m social comment --urn urn:li:share:123 \
   account's tokens are a failure, not a warning. When the project has no
   credits, `check` and `post` print `x: FAILED — X check failed: out of
   credits — … buy credits in the X Developer Console (https://console.x.com/)`
-  rather than a generic API error (HTTP 402, or a problem naming credits).
+  rather than a generic API error. That is matched positively — the
+  `credits-depleted` problem type, or a title or detail saying the credits
+  are depleted, exhausted, insufficient or absent — so a 402 or 403 about
+  something else (a billing profile, a credit card) is reported as the API
+  error it is, status included.
 - `post` publishes the same text everywhere by default; Bluesky allows 300
   graphemes, so give it its own copy with `--bluesky-text-file` when the
   LinkedIn version runs longer. URLs in the text become links; on Bluesky
@@ -143,8 +147,11 @@ uv run -m social comment --urn urn:li:share:123 \
 - `post --to x` sends the text as-is (`--x-text-file` for its own copy) and
   refuses it before any network call when it is over **280 weighted
   characters**: every URL counts as 23 whatever its length, most characters
-  as 1, CJK, emoji and symbols outside the Latin ranges (`€`, `•`) as 2 —
-  X's own rule. Links go **inline in the body** — X has no link card and
+  as 1, CJK, emoji and symbols outside the Latin ranges (`€`, `•`, `⌘`) as
+  2 — X's own rule. A bare domain X would autolink (`radiusred.uk`) is
+  weighed as a URL too, at 23 or its literal weight, whichever is larger:
+  the guard never under-counts, so it may refuse a text X would take by a
+  few characters, never the reverse. Links go **inline in the body** — X has no link card and
   `--link`/`--title`/`--description` are not applied to X (a stderr line says
   so if they are passed with `--to x`); there is no reply command, per the
   standing rule in `announcements/README.md`. Write URLs with their scheme;
