@@ -86,15 +86,18 @@ yet; the name is in the text and searchable).
 Expected **$0.200**: a post containing a URL, at the
 [pricing verified 2026-09-26](https://docs.x.com/x-api/getting-started/pricing)
 ($0.015 per post, $0.200 per post containing a URL). The same page lists
-reads: *User: Read $0.010 per resource*. That is why `uv run -m social check`
-was **not** run for this announcement: its X leg is `GET /2/users/me`, a
-billed user read, and `--dry-run` proves the request body without touching
-the network. The one live call is the post itself.
+reads: *User: Read $0.010 per resource*. On that reading `uv run -m social
+check` was **not** run for this announcement — its X leg is `GET /2/users/me`
+— and `--dry-run` proved the request body without touching the network, so the
+one live call from this task was the post itself. The console showed
+afterwards that the caution was unnecessary: the listed User-read price did
+not apply to `/2/users/me` here, and the operator's earlier signed `check`
+calls were not billed (see the Result section). `check` can be run before the
+next announcement.
 
 The billed cost is checked against the console's usage after the post, per
-the X URL Decision and M8-R4: the operator reads the credit balance before and
-after, and the difference is recorded in the Result section. A figure other
-than $0.200 is raised on the milestone, not accepted silently.
+the X URL Decision and M8-R4, and recorded in the Result section. A figure
+other than $0.200 is raised on the milestone, not accepted silently.
 
 ## Commands
 
@@ -156,12 +159,16 @@ file before the send):
 
   Nothing on stderr; exit 0. No leg failed and none was retried. The
   verification was a plain public fetch of the post URL (HTTP 200, no API
-  call, nothing billed); no read of the X API was made, since every read is
-  billed on the pay-per-use project.
-- **Billed cost: pending the operator's console reading.** The operator gave
-  no credit balance before the post at the gate, so the charge cannot be
-  computed as a before/after difference; per M8-R4 it is read from the X
-  console's usage by the operator after the post and recorded here against
-  the expected $0.200. A figure other than $0.200 is raised on the milestone
-  ([radiusred/ops#34](https://github.com/radiusred/ops/issues/34)) against
-  the X URL Decision, not accepted silently.
+  call); no read of the X API was made from this task.
+- **Billed cost: $0.20**, as read from the X console's usage by the operator
+  after the post
+  ([console reading, 2026-09-26 16:47Z](https://github.com/radiusred/www/issues/76#issuecomment-5848035923)):
+  **$0.20** billed for the post and **$4.80** remaining of the $5.00 funded.
+  That matches the expected $0.200 and the X URL Decision
+  ([radiusred/ops#28](https://github.com/radiusred/ops/issues/28#issuecomment-5846341962)),
+  so there is nothing to raise on the milestone (M8-R4). No balance was
+  given before the post at the gate; the charge is the console's own
+  per-post figure, not a before/after difference. The $5.00 − $0.20 = $4.80
+  balance also shows that the operator's earlier signed `GET /2/users/me`
+  checks were not billed: the pricing page's listed User-read price did not
+  apply to `/2/users/me` here.
