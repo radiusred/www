@@ -74,8 +74,12 @@ and the LinkedIn Page `linkedin.com/company/radiusred` — through the `social`
 package in this repo. It is stdlib-only; run it with `uv run -m social`.
 
 **Credentials never live in this tree.** They are read from the environment
-first, then from `~/.config/codecrew/social.env` (mode 0600; `--env-file` to
-point elsewhere). Keys: `BSKY_HANDLE`, `BSKY_APP_PASSWORD`,
+first, then from `~/.config/radiusred/social.env` (mode 0600 in a 0700
+directory; `--env-file` to point elsewhere). That is the only file the tool
+writes. Transitionally, when it is absent the old `~/.config/codecrew/social.env`
+is still read, with one stderr line naming both paths: move the file. The
+CodeCrew App keys (`*.pem`, `*.json` for `gh codecrew identity token`) stay in
+`~/.config/codecrew/`; only `social.env` moves. Keys: `BSKY_HANDLE`, `BSKY_APP_PASSWORD`,
 `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_ACCESS_TOKEN`,
 `LINKEDIN_REFRESH_TOKEN`, `LINKEDIN_ORG_URN`; optional `LINKEDIN_VERSION`
 (API version, `YYYYMM`), `LINKEDIN_REDIRECT_URI`, `BSKY_PDS`. The two
