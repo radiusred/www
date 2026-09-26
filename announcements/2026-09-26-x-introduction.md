@@ -139,7 +139,29 @@ by hand, after the checkpoint on www#76 is resolved.
 
 ## Result
 
-_Placeholder. Filled after the operator resolves the checkpoint on
-[www#76](https://github.com/radiusred/www/issues/76) and the post goes out:
-the post URL and time, the verification, and the billed cost read from the
-X console's usage against the expected $0.200 (M8-R4)._
+Posted 2026-09-26 after the operator resolved the checkpoint on www#76 for
+the text exactly as drafted
+([**Gate resolved:** approved, 16:39:33Z](https://github.com/radiusred/www/issues/76#issuecomment-5847976834)).
+wordy ran the command above without `--dry-run`, once, from its clone, with
+the text file unchanged since the dry run (checked against the committed
+file before the send):
+
+- **X**, 16:40:02Z — <https://x.com/radiusred_uk/status/2103887328959766634>,
+  id `2103887328959766634`. The CLI's output, verbatim (scanned, no
+  credentials in it):
+
+  ```json
+  {"network": "x", "id": "2103887328959766634", "url": "https://x.com/radiusred_uk/status/2103887328959766634"}
+  ```
+
+  Nothing on stderr; exit 0. No leg failed and none was retried. The
+  verification was a plain public fetch of the post URL (HTTP 200, no API
+  call, nothing billed); no read of the X API was made, since every read is
+  billed on the pay-per-use project.
+- **Billed cost: pending the operator's console reading.** The operator gave
+  no credit balance before the post at the gate, so the charge cannot be
+  computed as a before/after difference; per M8-R4 it is read from the X
+  console's usage by the operator after the post and recorded here against
+  the expected $0.200. A figure other than $0.200 is raised on the milestone
+  ([radiusred/ops#34](https://github.com/radiusred/ops/issues/34)) against
+  the X URL Decision, not accepted silently.
