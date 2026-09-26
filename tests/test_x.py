@@ -269,8 +269,18 @@ def test_a_bare_domain_longer_than_23_keeps_its_literal_weight():
     assert x.weighted_len("https://" + long_bare) == 23  # a scheme makes it a certain URL
 
 
+def test_punycode_and_idn_domains_are_bare_domains_too():
+    assert x.weighted_len("foo.xn--p1ai") == 23
+    assert x.weighted_len("a" * 260 + " foo.xn--p1ai") == 284
+    with pytest.raises(ValueError, match="284 weighted"):
+        x.build_post("a" * 260 + " foo.xn--p1ai")
+    assert x.weighted_len("\u043f\u0440\u0438\u043c\u0435\u0440.\u0440\u0444") == 23  # an IDN label and TLD (literal 9)
+    assert x.weighted_len("m\u00fcnchen.de/rathaus") == 23  # an accented label
+    assert x.weighted_len("xn--mnchen-3ya.de") == 23  # punycode in a non-final label
+
+
 def test_things_that_are_not_bare_domains_are_weighed_literally():
-    for text in ("v2.1.0", "e.g. this", "i.e.", "2026-09-26", "darren@radiusred.uk", "a.b", "x/y.z"):
+    for text in ("v2.1.0", "e.g. this", "i.e.", "2026-09-26", "darren@radiusred.uk", "a.b", "x/y.z", "1.5x", "foo.123"):
         assert x.weighted_len(text) == len(text), text
     assert x.weighted_len("darren@radiusred.uk") == 19  # an address is not autolinked
 

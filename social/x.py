@@ -33,9 +33,12 @@ URL_RE = re.compile(r"https?://[^\s<>()\[\]\"']+")
 # twitter-text's TLD table the guard cannot know whether X will, so a
 # candidate is weighed as the larger of its literal weight and 23: never
 # under. Not preceded by a word character, ``@`` (an address), ``/`` or a
-# dot; labels are DNS-shaped; the TLD is letters.
+# dot; labels are Unicode letters and digits with hyphens (twitter-text
+# accepts IDN labels); the final label is letters (an ASCII or IDN TLD) or
+# punycode ``xn--…``, never digits, so a version number is not a domain.
 BARE_URL_RE = re.compile(
-    r"(?<![\w@./-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?:/[^\s<>()\[\]\"']*)?(?![\w-])",
+    r"(?<![\w@./-])(?:[^\W_](?:[^\W_]|-){0,62}\.)+(?:xn--[a-z0-9-]+|[^\W\d_]{2,63})"
+    r"(?:/[^\s<>()\[\]\"']*)?(?![\w-])",
     re.IGNORECASE,
 )
 TRAILING_PUNCT = ".,;:!?'\")"
