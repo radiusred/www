@@ -1,6 +1,9 @@
 import json
+import os
 
-from social import cli
+import pytest
+
+from social import cli, config
 
 
 def _post_args(*extra):
@@ -158,3 +161,88 @@ def test_comment_publishes_and_prints_the_comment_urn(env_file, transport, capsy
     assert json.loads(capsys.readouterr().out) == {
         "network": "linkedin", "urn": "urn:li:comment:(urn:li:share:99,1)", "object": "urn:li:share:99",
     }
+
+
+# --- the default path and the transitional fallback (www#70, M7-R5) ---------
+
+
+@pytest.fixture
+def default_paths(tmp_path, monkeypatch):
+    new = tmp_path / "radiusred" / "social.env"
+    old = tmp_path / "codecrew" / "social.env"
+    monkeypatch.setattr(config, "DEFAULT_ENV_FILE", new)
+    monkeypatch.setattr(config, "LEGACY_ENV_FILE", old)
+    return new, old
+
+
+def test_no_env_file_flag_reads_the_new_default_path(default_paths, env_file, refusing_transport, capsys):
+    new, _ = default_paths
+    new.parent.mkdir(mode=0o700)
+    new.write_text(env_file.read_text())
+    rc = cli.main(_post_args("--dry-run"), transport=refusing_transport, environ={})
+    assert rc == 0
+    out, err = capsys.readouterr()
+    assert '"author": "urn:li:organization:42"' in out
+    assert err == ""
+
+
+def test_legacy_path_is_read_with_one_hint_per_invocation(default_paths, env_file, refusing_transport, capsys):
+    new, old = default_paths
+    old.parent.mkdir(mode=0o700)
+    old.write_text(env_file.read_text())
+    rc = cli.main(_post_args("--dry-run"), transport=refusing_transport, environ={})
+    assert rc == 0
+    out, err = capsys.readouterr()
+    assert '"author": "urn:li:organization:42"' in out
+    assert err.count("\n") == 1 and str(old) in err and str(new) in err
+    assert not new.exists()  # a dry run writes nothing anywhere
+
+
+def test_neither_default_present_names_the_new_path_in_the_error(default_paths, refusing_transport, capsys):
+    new, old = default_paths
+    rc = cli.main(["post", "--to", "bluesky", "--text", "hi"], transport=refusing_transport, environ={})
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert f"BSKY_HANDLE is not set in the environment or {new}" in err and str(old) not in err
+
+
+def test_rotation_from_the_legacy_file_persists_the_whole_set_to_the_new_path(default_paths, env_file, transport, capsys):
+    new, old = default_paths
+    old.parent.mkdir(mode=0o700)
+    legacy_text = env_file.read_text().replace("LINKEDIN_ACCESS_TOKEN_EXPIRES_AT=9999999999", "LINKEDIN_ACCESS_TOKEN_EXPIRES_AT=1000")
+    old.write_text(legacy_text)
+    transport.expect("POST", "oauth/v2/accessToken", body={"access_token": "fresh", "expires_in": 5183999, "refresh_token": "fresh-r", "refresh_token_expires_in": 22326553})
+    transport.expect("POST", "/rest/posts", status=201, headers={"x-restli-id": "urn:li:share:1"})
+    rc = cli.main(["post", "--to", "linkedin", "--text", "hi"], transport=transport, environ={})
+    assert rc == 0
+    text = new.read_text()
+    for line in ("# test creds\n", "BSKY_HANDLE=example.bsky.social\n", "BSKY_APP_PASSWORD=app-pass\n",
+                 "LINKEDIN_CLIENT_ID=cid\n", "LINKEDIN_ORG_URN=urn:li:organization:42\n",
+                 "LINKEDIN_ACCESS_TOKEN=fresh\n", "LINKEDIN_REFRESH_TOKEN=fresh-r\n"):
+        assert line in text
+    assert "old-access" not in text and "LINKEDIN_ACCESS_TOKEN_EXPIRES_AT=1000" not in text
+    assert old.read_text() == legacy_text  # untouched
+    assert oct(os.stat(new).st_mode & 0o777) == "0o600"
+    assert oct(os.stat(new.parent).st_mode & 0o777) == "0o700"
+    err = capsys.readouterr().err
+    assert str(old) in err and "refreshed" in err
+    # the next run finds the new file and reads it without the hint
+    transport.expect("POST", "/rest/posts", status=201, headers={"x-restli-id": "urn:li:share:2"})
+    rc = cli.main(["post", "--to", "linkedin", "--text", "hi"], transport=transport, environ={})
+    assert rc == 0
+    assert transport.calls[-1]["headers"]["Authorization"] == "Bearer fresh"
+    assert str(old) not in capsys.readouterr().err
+
+
+def test_explicit_env_file_ignores_the_legacy_file(default_paths, env_file, tmp_path, refusing_transport, capsys):
+    _, old = default_paths
+    old.parent.mkdir(mode=0o700)
+    old.write_text(env_file.read_text())
+    rc = cli.main(["--env-file", str(tmp_path / "none.env"), "post", "--to", "bluesky", "--text", "hi"], transport=refusing_transport, environ={})
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "none.env" in err and str(old) not in err
+
+
+def test_env_file_help_names_the_new_default():
+    assert "~/.config/radiusred/social.env" in cli.build_parser().format_help()

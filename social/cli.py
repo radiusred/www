@@ -285,7 +285,7 @@ def cmd_auth_linkedin(args, creds: Credentials, transport) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m social", description=__doc__)
-    parser.add_argument("--env-file", type=Path, help="credentials file (default ~/.config/codecrew/social.env)")
+    parser.add_argument("--env-file", type=Path, help="credentials file (default ~/.config/radiusred/social.env)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("check", help="prove the credentials work without posting")
