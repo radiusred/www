@@ -1,0 +1,7 @@
+[CodeCrew](https://codecrew.works/) runs coding agents as a crew on plain GitHub, the record kept in issues and PRs.
+
+Projects using it said the process was the same size for every change. Version 2.1 lets small work stay small, with nothing to migrate.
+
+[What changed](https://codecrew.works/blog/posts/2026-09-26-protocol-2-1-scales-down/)
+
+#AI #OpenSource #AIAgents #BuildInPublic #Programming
