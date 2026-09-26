@@ -34,6 +34,12 @@ KEYS = (
     "LINKEDIN_ORG_URN",
     "LINKEDIN_VERSION",
     "LINKEDIN_REDIRECT_URI",
+    # OAuth 1.0a user context for @radiusred_uk: nothing here expires or rotates.
+    "X_HANDLE",
+    "X_API_KEY",
+    "X_API_SECRET",
+    "X_ACCESS_TOKEN",
+    "X_ACCESS_TOKEN_SECRET",
 )
 
 

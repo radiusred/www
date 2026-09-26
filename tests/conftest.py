@@ -56,5 +56,10 @@ def env_file(tmp_path):
         "LINKEDIN_REFRESH_TOKEN=old-refresh\n"
         "LINKEDIN_ACCESS_TOKEN_EXPIRES_AT=9999999999\n"
         "LINKEDIN_ORG_URN=urn:li:organization:42\n"
+        "X_HANDLE=example_uk\n"
+        "X_API_KEY=xkey\n"
+        "X_API_SECRET=xsecret\n"
+        "X_ACCESS_TOKEN=xtoken\n"
+        "X_ACCESS_TOKEN_SECRET=xtokensecret\n"
     )
     return path

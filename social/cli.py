@@ -11,11 +11,11 @@ import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import bluesky, linkedin
+from . import bluesky, linkedin, x
 from .config import Credentials, MissingCredential, load_credentials
 from .transport import ApiError, UrllibTransport
 
-NETWORKS = ("bluesky", "linkedin")
+NETWORKS = ("bluesky", "linkedin", "x")
 REFRESH_AHEAD = 7 * 24 * 3600  # refresh when the access token has under a week left
 
 
@@ -87,6 +87,20 @@ def ensure_linkedin_token(creds: Credentials, client: linkedin.LinkedIn, now: fl
     return tokens["access_token"]
 
 
+# --- X ------------------------------------------------------------------
+
+
+def x_client(creds: Credentials, transport) -> x.X:
+    return x.X(
+        transport,
+        creds.require("X_HANDLE"),
+        creds.require("X_API_KEY"),
+        creds.require("X_API_SECRET"),
+        creds.require("X_ACCESS_TOKEN"),
+        creds.require("X_ACCESS_TOKEN_SECRET"),
+    )
+
+
 # --- commands -----------------------------------------------------------
 
 
@@ -134,6 +148,19 @@ def cmd_check(args, creds: Credentials, transport) -> int:
     except (MissingCredential, ApiError) as err:
         failures += 1
         print(f"linkedin: FAILED — {err}")
+
+    try:
+        client = x_client(creds, transport)
+        me = client.me()
+        username = me.get("username", "")
+        if username.lower() != client.handle.lower():
+            failures += 1
+            print(f"x: FAILED — the tokens belong to @{username}, not @{client.handle} (X_HANDLE)")
+        else:
+            print(f"x: ok — @{username} ({me.get('id')})")
+    except (MissingCredential, ApiError) as err:
+        failures += 1
+        print(f"x: FAILED — {err}")
     return 1 if failures else 0
 
 
@@ -151,7 +178,7 @@ def _read_text(args, network: str) -> str:
 def cmd_post(args, creds: Credentials, transport) -> int:
     targets = list(dict.fromkeys(args.to))
     if not targets:
-        raise SystemExit("error: --to bluesky and/or --to linkedin is required")
+        raise SystemExit("error: --to bluesky, --to linkedin and/or --to x is required")
 
     requests: dict[str, dict] = {}
     clients: dict[str, object] = {}
@@ -175,6 +202,16 @@ def cmd_post(args, creds: Credentials, transport) -> int:
         else:
             client = linkedin_client(creds, transport)
             clients["linkedin"] = (client, body)
+    if "x" in targets:
+        # No card on X: links go inline in the body (radiusred/ops#28 Decision).
+        if args.link or args.title or args.description:
+            _say("x: --link/--title/--description are not applied on X; put the URL in the text")
+        body = x.build_post(_read_text(args, "x"))
+        if args.dry_run:
+            client = x.X(transport, creds.get("X_HANDLE", "<handle>"), "", "", "", "")
+            requests["x"] = client.post_request(body)
+        else:
+            clients["x"] = (x_client(creds, transport), body)
 
     if args.dry_run:
         for network in targets:
@@ -296,7 +333,8 @@ def build_parser() -> argparse.ArgumentParser:
     post.add_argument("--text-file")
     post.add_argument("--bluesky-text-file", help="override the text for Bluesky (300 graphemes)")
     post.add_argument("--linkedin-text-file", help="override the text for LinkedIn")
-    post.add_argument("--link", help="URL to attach as a link card / article")
+    post.add_argument("--x-text-file", help="override the text for X (280 weighted characters, every URL 23)")
+    post.add_argument("--link", help="URL to attach as a link card / article (Bluesky, LinkedIn; not X)")
     post.add_argument("--title", help="title for the link card")
     post.add_argument("--description", help="description for the link card")
     post.add_argument("--dry-run", action="store_true", help="print the requests; send nothing")
