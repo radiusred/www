@@ -69,9 +69,11 @@ We evaluated three options...
 
 ## Posting to social accounts
 
-Announcements go out from Radius Red's own accounts — `radiusred.bsky.social`
-and the LinkedIn Page `linkedin.com/company/radiusred` — through the `social`
-package in this repo. It is stdlib-only; run it with `uv run -m social`.
+Announcements go out from Radius Red's own accounts — `radiusred.bsky.social`,
+the LinkedIn Page `linkedin.com/company/radiusred` and `@radiusred_uk` on X —
+through the `social` package in this repo. It is stdlib-only; run it with
+`uv run -m social`. This section is the social runbook; `RUNBOOK.md` is about
+serving the site.
 
 **Credentials never live in this tree.** They are read from the environment
 first, then from `~/.config/radiusred/social.env` (mode 0600 in a 0700
@@ -83,7 +85,25 @@ CodeCrew App keys (`*.pem`, `*.json` for `gh codecrew identity token`) stay in
 `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_ACCESS_TOKEN`,
 `LINKEDIN_REFRESH_TOKEN`, `LINKEDIN_ORG_URN`; optional `LINKEDIN_VERSION`
 (API version, `YYYYMM`), `LINKEDIN_REDIRECT_URI`, `BSKY_PDS`. The two
-`*_EXPIRES_AT` keys are maintained by the tool.
+`*_EXPIRES_AT` keys are maintained by the tool. For X: `X_HANDLE`
+(`radiusred_uk`), `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`,
+`X_ACCESS_TOKEN_SECRET` — OAuth 1.0a user context, nothing else.
+
+**X credentials, and the pitfall.** In the X Developer Console the app's
+*Keys and tokens* page shows two families. The OAuth 1.0 **Consumer Key** and
+**Consumer Secret** (also called API Key and Secret) are what `X_API_KEY` and
+`X_API_SECRET` take — the Consumer Key is **25 characters**. The OAuth 2.0
+**Client ID** is 34 characters and is **not it**: nothing here uses OAuth 2.0,
+and a Client ID in `X_API_KEY` fails every signed call with a 401. The
+**Access Token** and **Access Token Secret** must be generated while signed in
+as `@radiusred_uk` with the app's permissions set to **Read and write**
+(regenerate them after changing the permissions — a token keeps the
+permissions it was minted with). None of the four expires or rotates, so the
+tool never writes an X key back to the env file. The account's developer
+project is pay-per-use: [pricing as verified 2026-09-26](https://docs.x.com/x-api/getting-started/pricing)
+is **$0.015 per post, $0.200 per post containing a URL**, credits bought up
+front in the console (no free tier); with no credits a write is refused and
+the tool says so — see `check` below.
 
 ```sh
 uv run -m social check                       # prove auth without posting
@@ -91,6 +111,8 @@ uv run -m social post --to bluesky --to linkedin \
     --text-file announce.txt --link URL --title "…" --dry-run   # show the requests
 uv run -m social post --to bluesky --to linkedin \
     --text-file announce.txt --link URL --title "…"             # send them
+uv run -m social post --to x --x-text-file x.txt --dry-run     # X: its own text, no card
+uv run -m social post --to x --x-text-file x.txt               # one gated post, by hand
 uv run -m social auth linkedin               # re-consent (browser leg, human)
 uv run -m social comment --urn urn:li:share:123 \
     --text-file links.txt                    # the first comment on a LinkedIn share
@@ -100,7 +122,13 @@ uv run -m social comment --urn urn:li:share:123 \
   when it has under a week left, and writing the new tokens back to the env
   file when that is where they came from), and lists the Pages the token
   administers — writing `LINKEDIN_ORG_URN` to the env file when exactly one
-  Page is administered and the key is not yet set.
+  Page is administered and the key is not yet set. For X it calls
+  `GET /2/users/me` with the signed tokens and passes only when the account
+  they belong to is `X_HANDLE` (`x: ok — @radiusred_uk (id)`); another
+  account's tokens are a failure, not a warning. When the project has no
+  credits, `check` and `post` print `x: FAILED — X check failed: out of
+  credits — … buy credits in the X Developer Console (https://console.x.com/)`
+  rather than a generic API error (HTTP 402, or a problem naming credits).
 - `post` publishes the same text everywhere by default; Bluesky allows 300
   graphemes, so give it its own copy with `--bluesky-text-file` when the
   LinkedIn version runs longer. URLs in the text become links; on Bluesky
@@ -112,6 +140,17 @@ uv run -m social comment --urn urn:li:share:123 \
   kept in `announcements/`. Always `--dry-run` first —
   it prints the exact request bodies and touches no network. Output is one
   JSON line per network with the post URL.
+- `post --to x` sends the text as-is (`--x-text-file` for its own copy) and
+  refuses it before any network call when it is over **280 weighted
+  characters**: every URL counts as 23 whatever its length, most characters
+  as 1, CJK, emoji and symbols outside the Latin ranges (`€`, `•`) as 2 —
+  X's own rule. Links go **inline in the body** — X has no link card and
+  `--link`/`--title`/`--description` are not applied to X (a stderr line says
+  so if they are passed with `--to x`); there is no reply command, per the
+  standing rule in `announcements/README.md`. Write URLs with their scheme;
+  a `[label](url)` is Bluesky syntax and is sent to X verbatim. `--to` is
+  always explicit: there is no "all", and nothing posts to X as a side effect
+  of posting elsewhere.
 - `comment` posts a comment on a LinkedIn share as the Page, given the URN
   `post` printed. It is where a LinkedIn post's links go: inline URLs cost the
   post reach, so the body says "links in the first comment" and this command
@@ -126,6 +165,8 @@ uv run -m social comment --urn urn:li:share:123 \
 Rotation calendar: LinkedIn access tokens last 60 days and refresh
 themselves; the refresh token lasts a year from the last consent, after which
 `auth linkedin` is needed again (`check` prints the date). Bluesky app
-passwords do not expire; revoke and re-mint from the account's settings. The
-LinkedIn API version pinned in `social/linkedin.py` retires after about a
-year — a `426 NONEXISTENT_VERSION` means bump it.
+passwords do not expire; revoke and re-mint from the account's settings. X's
+OAuth 1.0a tokens do not expire either; revoke and regenerate them in the
+Developer Console (as `@radiusred_uk`, Read and write), then update the four
+`X_*` keys by hand. The LinkedIn API version pinned in `social/linkedin.py`
+retires after about a year — a `426 NONEXISTENT_VERSION` means bump it.
