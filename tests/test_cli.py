@@ -93,12 +93,14 @@ def test_check_reports_both_networks_and_the_administered_page(env_file, transpo
     transport.expect("POST", "introspectToken", body={"active": True, "status": "active", "expires_at": 1798761600, "scope": "a,b"})
     transport.expect("GET", "organizationAcls", body={"elements": [{"organization": "urn:li:organization:42"}]})
     transport.expect("GET", "organizations/42", body={"localizedName": "Radius Red", "vanityName": "radiusred"})
+    transport.expect("GET", "/2/users/me", body={"data": {"id": "12", "username": "example_uk"}})
     rc = cli.main(["--env-file", str(env_file), "check"], transport=transport, environ={})
     out = capsys.readouterr().out
     assert rc == 0
     assert "bluesky: ok — example.bsky.social (did:plc:abc)" in out
     assert "linkedin: token active, expires 2027-01-01; scopes: a b" in out
     assert "administers urn:li:organization:42 — Radius Red / radiusred (configured)" in out
+    assert "x: ok — @example_uk (12)" in out
 
 
 def test_env_sourced_token_keeps_its_expiry_out_of_the_file_so_the_next_run_refreshes(env_file, transport, capsys):
@@ -246,3 +248,111 @@ def test_explicit_env_file_ignores_the_legacy_file(default_paths, env_file, tmp_
 
 def test_env_file_help_names_the_new_default():
     assert "~/.config/radiusred/social.env" in cli.build_parser().format_help()
+
+
+# --- the X transport (www#71, M7-R1/R2/R3) -----------------------------------
+
+
+def test_x_dry_run_prints_the_request_and_touches_no_network(env_file, refusing_transport, capsys):
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "x", "--text", "Shipped: https://www.radiusred.uk/blog/", "--dry-run"], transport=refusing_transport, environ={})
+    assert rc == 0
+    out, err = capsys.readouterr()
+    doc = json.loads(out)
+    assert doc == {"network": "x", "dry_run": True, "request": {"method": "POST", "url": "https://api.x.com/2/tweets", "body": {"text": "Shipped: https://www.radiusred.uk/blog/"}}}
+    assert "Authorization" not in out and "xsecret" not in out and err == ""
+
+
+def test_x_dry_run_needs_no_credentials(tmp_path, refusing_transport, capsys):
+    rc = cli.main(["--env-file", str(tmp_path / "none.env"), "post", "--to", "x", "--text", "hi", "--dry-run"], transport=refusing_transport, environ={})
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["request"]["body"] == {"text": "hi"}
+
+
+def test_x_post_publishes_and_prints_the_url(env_file, transport, capsys):
+    transport.expect("POST", "/2/tweets", status=201, body={"data": {"id": "1970", "text": "hi"}})
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "x", "--text", "hi"], transport=transport, environ={})
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out) == {"network": "x", "id": "1970", "url": "https://x.com/example_uk/status/1970"}
+    assert transport.calls[0]["headers"]["Authorization"].startswith("OAuth ")
+    assert not env_file.read_text().endswith(".tmp")  # nothing rotates, nothing is written
+
+
+def test_x_post_alongside_the_other_networks_is_explicit_and_ordered(env_file, transport, capsys):
+    transport.expect("POST", "createSession", body={"did": "did:plc:abc", "accessJwt": "jwt", "handle": "example.bsky.social"})
+    transport.expect("POST", "createRecord", body={"uri": "at://did:plc:abc/app.bsky.feed.post/3k", "cid": "c"})
+    transport.expect("POST", "/2/tweets", status=201, body={"data": {"id": "7"}})
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "bluesky", "--to", "x", "--text", "hi"], transport=transport, environ={})
+    assert rc == 0
+    assert [json.loads(l)["network"] for l in capsys.readouterr().out.splitlines()] == ["bluesky", "x"]
+
+
+def test_to_has_no_implicit_all(env_file, refusing_transport, capsys):
+    with pytest.raises(SystemExit, match="--to x is required"):
+        cli.main(["--env-file", str(env_file), "post", "--text", "hi"], transport=refusing_transport, environ={})
+    with pytest.raises(SystemExit):
+        cli.main(["--env-file", str(env_file), "post", "--to", "all", "--text", "hi"], transport=refusing_transport, environ={})
+
+
+def test_x_over_length_text_is_refused_before_any_network_call(env_file, refusing_transport, capsys):
+    text = "a" * 258 + " https://www.radiusred.uk/blog/"
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "bluesky", "--to", "x", "--text", text], transport=refusing_transport, environ={})
+    assert rc == 2
+    assert "error: post is 282 weighted characters; X allows 280 (every URL counts as 23)" in capsys.readouterr().err
+
+
+def test_x_text_override_and_link_note(env_file, refusing_transport, tmp_path, capsys):
+    short = tmp_path / "x.txt"
+    short.write_text("for x https://www.radiusred.uk/\n")
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "linkedin", "--to", "x", "--text", "long form", "--x-text-file", str(short), "--link", "https://www.radiusred.uk/", "--dry-run"], transport=refusing_transport, environ={})
+    assert rc == 0
+    out, err = capsys.readouterr()
+    assert '"text": "for x https://www.radiusred.uk/"' in out and '"commentary": "long form"' in out
+    assert "x: --link/--title/--description are not applied on X" in err
+
+
+def _check_bluesky_and_linkedin(transport):
+    transport.expect("POST", "createSession", body={"did": "did:plc:abc", "accessJwt": "jwt", "handle": "example.bsky.social"})
+    transport.expect("POST", "introspectToken", body={"active": True, "status": "active", "expires_at": 1798761600, "scope": "a,b"})
+    transport.expect("GET", "organizationAcls", body={"elements": [{"organization": "urn:li:organization:42"}]})
+    transport.expect("GET", "organizations/42", body={"localizedName": "Radius Red", "vanityName": "radiusred"})
+
+
+def test_check_verifies_the_x_handle(env_file, transport, capsys):
+    _check_bluesky_and_linkedin(transport)
+    transport.expect("GET", "/2/users/me", body={"data": {"id": "12", "name": "Example", "username": "Example_UK"}})
+    rc = cli.main(["--env-file", str(env_file), "check"], transport=transport, environ={})
+    assert rc == 0
+    assert "x: ok — @Example_UK (12)" in capsys.readouterr().out
+
+
+def test_check_fails_when_the_tokens_belong_to_another_account(env_file, transport, capsys):
+    _check_bluesky_and_linkedin(transport)
+    transport.expect("GET", "/2/users/me", body={"data": {"id": "13", "username": "someone_else"}})
+    rc = cli.main(["--env-file", str(env_file), "check"], transport=transport, environ={})
+    assert rc == 1
+    assert "x: FAILED — the tokens belong to @someone_else, not @example_uk (X_HANDLE)" in capsys.readouterr().out
+
+
+def test_check_reports_out_of_credits_plainly(env_file, transport, capsys):
+    _check_bluesky_and_linkedin(transport)
+    transport.expect("GET", "/2/users/me", status=402, body={"detail": "credits depleted", "status": 402, "title": "Payment Required", "type": "https://api.x.com/2/problems/credits-depleted"})
+    rc = cli.main(["--env-file", str(env_file), "check"], transport=transport, environ={})
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert "x: FAILED — X check failed: out of credits — " in out and "buy credits in the X Developer Console (https://console.x.com/)" in out
+
+
+def test_post_reports_out_of_credits_plainly(env_file, transport, capsys):
+    transport.expect("POST", "/2/tweets", status=402, body={"detail": "credits depleted", "status": 402, "title": "Payment Required", "type": "https://api.x.com/2/problems/credits-depleted"})
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "x", "--text", "hi"], transport=transport, environ={})
+    assert rc == 1
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["network"] == "x" and doc["error"].startswith("X post failed: out of credits — ")
+
+
+def test_check_without_x_keys_reports_the_missing_key(env_file, transport, capsys):
+    env_file.write_text("\n".join(l for l in env_file.read_text().splitlines() if not l.startswith("X_")) + "\n")
+    _check_bluesky_and_linkedin(transport)
+    rc = cli.main(["--env-file", str(env_file), "check"], transport=transport, environ={})
+    assert rc == 1
+    assert "x: FAILED — X_HANDLE is not set" in capsys.readouterr().out
