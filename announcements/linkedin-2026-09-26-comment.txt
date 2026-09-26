@@ -1,0 +1,7 @@
+Links:
+
+CodeCrew, the project: https://codecrew.works/
+
+What changed in 2.1, and what an existing project runs to pick it up: https://codecrew.works/blog/posts/2026-09-26-protocol-2-1-scales-down/
+
+The source and the full changelog: https://github.com/radiusred/gh-codecrew
