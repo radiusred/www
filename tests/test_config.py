@@ -152,3 +152,16 @@ def test_persist_from_the_fallback_seeds_the_new_file_with_the_full_value_set(pa
     text = new.read_text()
     assert text.count("LINKEDIN_ACCESS_TOKEN=fresh\n") == 1 and text.endswith("LINKEDIN_ORG_URN=urn:li:organization:1\n")
     assert old.read_text() == legacy_text
+
+
+def test_persist_makes_an_existing_permissive_directory_private(paths):
+    new, old = paths
+    _write(old, "BSKY_HANDLE=old\nLINKEDIN_ACCESS_TOKEN=stale\n")
+    new.parent.mkdir(parents=True, mode=0o755)
+    os.chmod(new.parent, 0o755)  # umask-proof: the directory really is world-readable
+    assert oct(os.stat(new.parent).st_mode & 0o777) == "0o755"
+    creds = load_credentials(None, {})
+    assert creds.persist({"LINKEDIN_ACCESS_TOKEN": "fresh"}) == []
+    assert oct(os.stat(new.parent).st_mode & 0o777) == "0o700"
+    assert oct(os.stat(new).st_mode & 0o777) == "0o600"
+    assert "LINKEDIN_ACCESS_TOKEN=fresh\n" in new.read_text() and "BSKY_HANDLE=old\n" in new.read_text()

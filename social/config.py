@@ -109,8 +109,11 @@ class Credentials:
         for key, value in writable.items():
             if key not in seen:
                 lines.append(f"{key}={value}")
+        # mkdir's mode neither applies to a directory that already exists nor
+        # survives the umask, so make the directory private explicitly.
         self.env_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        tmp = self.env_file.with_suffix(self.env_file.suffix + ".tmp")
+        os.chmod(self.env_file.parent, 0o700)
+        tmp =self.env_file.with_suffix(self.env_file.suffix + ".tmp")
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as fh:
             fh.write("\n".join(lines) + "\n")
