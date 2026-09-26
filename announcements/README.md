@@ -87,7 +87,10 @@ python3 -c "import sys; sys.path.insert(0,'.'); from social.x import weighted_le
 print(weighted_len(open('announcements/<file>.txt').read().strip()))"
 ```
 
-Every URL counts as **23** whatever its length. Most characters count 1;
+Every URL counts as **23** whatever its length, and a bare domain X would
+autolink (`radiusred.uk`, `codecrew.works/blog`) is weighed as a URL too, at
+23 or its literal weight, whichever is larger — the guard never under-counts.
+Most characters count 1;
 CJK, emoji (a whole sequence, skin tone and all, is one emoji at 2) and
 symbols outside the Latin ranges — `€`, the bullet `•` — count 2; the em dash
 and curly quotes count 1. The X text is its own file (`x-<date>.txt`): plain
