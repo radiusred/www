@@ -1,4 +1,5 @@
 import json
+import re
 
 import pytest
 
@@ -251,39 +252,138 @@ def test_unrelated_bodies_do_not_match_whatever_the_status(body):
     assert not x.out_of_credits(Response(403, body))
 
 
-# --- the weighted count: bare domains and the light ranges (checky's review) ---
+# --- the weighted count: bare domains, mirrored from twitter-text (checky's reviews) ---
+# js/src/extractUrlsWithIndices.js and js/src/regexp/*.js at twitter/twitter-text master.
 
 
 def test_a_bare_domain_is_weighed_as_a_url():
     assert x.weighted_len("radiusred.uk") == 23
-    assert x.weighted_len("see codecrew.works/blog now") == len("see  now") + 23
+    assert x.weighted_len("see codecrew.works now") == len("see  now") + 23
     assert x.weighted_len("(radiusred.uk).") == 26
     assert x.weighted_len("a" * 260 + " radiusred.uk") == 284
     with pytest.raises(ValueError, match="284 weighted"):
         x.build_post("a" * 260 + " radiusred.uk")
 
 
-def test_a_bare_domain_longer_than_23_keeps_its_literal_weight():
-    long_bare = "www.radiusred.uk/blog/posts/2026-09-26-protocol-2-1/"
-    assert x.weighted_len(long_bare) == len(long_bare)  # never under 23, never under literal
-    assert x.weighted_len("https://" + long_bare) == 23  # a scheme makes it a certain URL
+def test_combining_marks_in_a_label_are_latin_accent_chars():
+    # checky's case: NFC keeps U+1EA1 U+0301, both in latinAccentChars.js
+    token = "ạ́.com"
+    assert x.weighted_len(token) == 23
+    assert x.weighted_len("a" * 257 + " " + token) == 281
+    with pytest.raises(ValueError, match="281 weighted"):
+        x.build_post("a" * 257 + " " + token)
+    assert x.weighted_len("á.com") == 23  # composes to á, still in the class
 
 
-def test_punycode_and_idn_domains_are_bare_domains_too():
+def test_punycode_and_the_unicode_tld_list():
     assert x.weighted_len("foo.xn--p1ai") == 23
     assert x.weighted_len("a" * 260 + " foo.xn--p1ai") == 284
     with pytest.raises(ValueError, match="284 weighted"):
         x.build_post("a" * 260 + " foo.xn--p1ai")
-    assert x.weighted_len("\u043f\u0440\u0438\u043c\u0435\u0440.\u0440\u0444") == 23  # an IDN label and TLD (literal 9)
-    assert x.weighted_len("m\u00fcnchen.de/rathaus") == 23  # an accented label
-    assert x.weighted_len("xn--mnchen-3ya.de") == 23  # punycode in a non-final label
+    assert x.weighted_len("foo.рф") == 23  # a Latin label with the ccTLD рф
+    assert x.weighted_len("münchen.de/rathaus") == 23 + len("/rathaus")  # the path is weighed literally: over, never under
+    assert x.weighted_len("xn--mnchen-3ya.de") == 23
+    assert x.weighted_len("foo.中国人") == 25  # TLD 中国, then 人 on its own
+
+
+def test_labels_outside_the_latin_class_are_not_linked_without_a_scheme():
+    # validAsciiDomain: a protocol-less domain links only through Latin labels, as twitter-text does.
+    assert x.weighted_len("пример.рф") == 9  # пример.рф, literal
+    assert x.bare_domains("пример.рф") == []
+    assert x.weighted_len("https://пример.рф") == 23  # with a scheme it is a URL
+
+
+def test_a_non_latin_prefix_is_weighed_on_its_own_and_the_latin_part_is_the_link():
+    # twitter-text extracts the ASCII domain inside a wider validDomain match.
+    assert x.bare_domains("日本example.com") == [(2, 13)]
+    assert x.weighted_len("日本example.com") == 4 + 23
+    assert x.weighted_len("example.com日本") == 23 + 4
+    assert x.weighted_len("€foo.com") == 2 + 23
+
+
+def test_the_preceding_character_rules_are_twitter_texts():
+    assert x.bare_domains("darren@radiusred.uk") == []  # after @ nothing links: every start is preceded by [A-Za-z0-9@]
+    assert x.weighted_len("darren@radiusred.uk") == 19
+    assert x.bare_domains("darren@münchen.de") == [(9, 17)]  # ...but a start after ü is allowed: twitter-text links nchen.de
+    assert x.bare_domains("#foo.com") == [] and x.bare_domains("$foo.com") == []
+    # fullwidth ＠ and ＃ are not in punct.js: they are domain chars, the match starts at them, and foo.com links
+    assert x.bare_domains("＠foo.com") == [(1, 8)] and x.bare_domains("＃foo.com") == [(1, 8)]
+    for text in ("-foo.com", "_foo.com", ".foo.com", "x/y.com"):
+        assert x.bare_domains(text) == [], text  # invalidUrlWithoutProtocolPrecedingChars skips the match
+    assert x.bare_domains('"foo.com"') == [(1, 8)]  # a double quote is not in punct.js, so it is a domain char
+
+
+def test_a_bare_domain_longer_than_23_keeps_its_literal_weight():
+    long_bare = "www.radiusred.uk/blog/posts/2026-09-26-protocol-2-1/"
+    assert x.weighted_len(long_bare) == 23 + len("/blog/posts/2026-09-26-protocol-2-1/")
+    assert x.weighted_len("https://" + long_bare) == 23  # a scheme makes the whole thing 23
+    assert x.weighted_len("randomurlrandomurlrandomurlrandomurlrandomurlrandomurlrandomurls.com") == 68
 
 
 def test_things_that_are_not_bare_domains_are_weighed_literally():
-    for text in ("v2.1.0", "e.g. this", "i.e.", "2026-09-26", "darren@radiusred.uk", "a.b", "x/y.z", "1.5x", "foo.123"):
+    for text in ("v2.1.0", "e.g. this", "i.e.", "2026-09-26", "a.b", "1.5x", "foo.123", "c.d", "foo.com1"):
         assert x.weighted_len(text) == len(text), text
-    assert x.weighted_len("darren@radiusred.uk") == 19  # an address is not autolinked
+        assert x.bare_domains(text) == [], text
 
+
+def test_the_ascii_domain_class_is_letters_marks_digits_and_hyphen():
+    import unicodedata
+
+    chars = [chr(c) for c in range(0x10000) if re.fullmatch(f"[\\-a-zA-Z0-9{x.LATIN_ACCENT}]", chr(c))]
+    assert chars, "the class is not empty"
+    categories = {unicodedata.category(ch)[0] for ch in chars} - {"P"}  # the hyphen
+    assert categories == {"L", "M", "N"}
+    assert all(unicodedata.category(chr(c)) == "Mn" for c in range(0x0300, 0x0370))  # every combining diacritical is in
+
+
+def _linkable_tokens():
+    """Bare-domain tokens built from each character category twitter-text's
+    validAsciiDomain accepts, with a seeded generator for reproducibility."""
+    import random
+
+    rng = random.Random(71)
+    pools = {
+        "ascii lower": "abcdefghijklmnopqrstuvwxyz",
+        "ascii upper": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "digits": "0123456789",
+        "latin-1": [chr(c) for c in range(0xC0, 0x100) if c not in (0xD7, 0xF7)],
+        "latin extended a/b": [chr(c) for c in range(0x100, 0x250)],
+        "ipa singletons": [chr(c) for c in (0x253, 0x254, 0x256, 0x257, 0x259, 0x25B, 0x263, 0x268, 0x26F, 0x272, 0x289, 0x28B, 0x2BB)],
+        "combining marks": [chr(c) for c in range(0x300, 0x370)],
+        "latin extended additional": [chr(c) for c in range(0x1E00, 0x1F00)],
+    }
+    tlds = ["com", "uk", "works", "xn--p1ai", "рф", "中国", "info"]
+    tokens = []
+    for name, pool in pools.items():
+        for _ in range(12):
+            label = "".join(rng.choice(pool) for _ in range(rng.randint(1, 8)))
+            if rng.random() < 0.3 and len(label) >= 2:
+                label = label[: len(label) // 2] + "-" + label[len(label) // 2 :]  # a hyphen only inside a label
+            if rng.random() < 0.3:
+                label = "a" + label  # a combining mark needs something to sit on
+            tokens.append((name, label + "." + rng.choice(tlds)))
+    return tokens
+
+
+@pytest.mark.parametrize("before", ["", " ", "(", "日本", "\U0001f44d", "€", "\n", "‍", "«", "—"])
+def test_every_linkable_token_weighs_at_least_a_url(before):
+    # Property: for each token twitter-text may autolink, in a context that allows it, the guard's
+    # count is at least the count with that token replaced by a scheme URL (exactly 23).
+    for after in ("", " and more", ".", ")", "日本", "\U0001f44d"):
+        for name, token in _linkable_tokens():
+            text = before + token + after
+            floor = x.weighted_len(before + "https://x.co/ ") - 1 + x.weighted_len(after)
+            assert x.weighted_len(text) >= floor, (name, repr(text), x.weighted_len(text), floor)
+
+
+def test_excluded_contexts_stay_literal_like_twitter_text():
+    # (fullwidth ＠ and ＃ are domain chars, not excluders, and a letter or digit merges into the label:
+    # see the preceding-character test)
+    for before in ("@", "$", "#"):
+        for _, token in _linkable_tokens()[::7]:
+            if re.search(f"[{x.LATIN_ACCENT}]", token.split(".")[0]):
+                continue  # a non-ASCII label character is a valid start position for twitter-text too
+            assert x.bare_domains(before + token) == [], repr(before + token)
 
 def test_light_range_symbols_weigh_1_and_their_neighbours_2():
     # twitter-text config v3 ranges: 0-4351, 8192-8205, 8208-8223, 8242-8247
