@@ -64,17 +64,23 @@ UNICODE_TLDS = (  # the non-ASCII entries of validGTLD.js and validCCTLD.js
     "八卦 公司 公益 台湾 台灣 商城 商店 商标 嘉里 在线 大拿 娱乐 家電 工行 广东 微博 慈善 手机 手表 招聘 政务 政府 新闻 时尚 書籍 机构 游戏 澳門 "
     "点看 珠宝 移动 网址 网店 网站 网络 联通 谷歌 购物 通販 集团 食品 餐厅 香港 닷넷 닷컴 삼성 한국 "
 ).split()
+# twitter-text compiles extractUrl and validAsciiDomain with the ``i`` flag,
+# and the composed sub-patterns inherit it. Python's IGNORECASE also folds
+# four non-ASCII letters (İ ı ſ K) into ``[a-z]``, which JavaScript's
+# non-Unicode mode never does, so the ASCII classes are scoped ``(?-i:…)``
+# with both cases written out, and the flag reaches only the non-ASCII TLDs.
 _TLD = (
-    "(?:(?:" + "|".join(UNICODE_TLDS) + "|[a-zA-Z]{2,})(?![0-9a-zA-Z@+-])"
-    "|xn--[\\-0-9a-zA-Z]+)"
+    "(?:(?:" + "|".join(UNICODE_TLDS) + "|(?-i:[a-zA-Z]{2,}))(?-i:(?![0-9a-zA-Z@+-]))"
+    "|(?-i:[xX][nN]--[\\-0-9a-zA-Z]+))"
 )
 _SUBDOMAIN = f"(?:(?:{_DC}(?:[_-]|{_DC})*)?{_DC}\\.)"
 _DOMAIN_NAME = f"(?:(?:{_DC}(?:-|{_DC})*)?{_DC}\\.)"
 BARE_DOMAIN_RE = re.compile(
-    f"(?P<before>^|[^A-Za-z0-9@\\uff20$#\\uff03{_INVALID}])"
-    f"(?P<domain>{_SUBDOMAIN}*{_DOMAIN_NAME}{_TLD})"
+    f"(?P<before>^|(?-i:[^A-Za-z0-9@\\uff20$#\\uff03{_INVALID}]))"
+    f"(?P<domain>{_SUBDOMAIN}*{_DOMAIN_NAME}{_TLD})",
+    re.IGNORECASE,
 )
-ASCII_DOMAIN_RE = re.compile(f"(?:[\\-a-zA-Z0-9{LATIN_ACCENT}]+\\.)+{_TLD}")
+ASCII_DOMAIN_RE = re.compile(f"(?:(?-i:[\\-a-zA-Z0-9{LATIN_ACCENT}])+\\.)+{_TLD}", re.IGNORECASE)
 _SKIP_BEFORE = ("-", "_", ".", "/")  # invalidUrlWithoutProtocolPrecedingChars
 TRAILING_PUNCT = ".,;:!?'\")"
 

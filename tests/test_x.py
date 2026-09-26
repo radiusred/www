@@ -286,6 +286,28 @@ def test_punycode_and_the_unicode_tld_list():
     assert x.weighted_len("foo.中国人") == 25  # TLD 中国, then 人 on its own
 
 
+def test_case_is_folded_as_twitter_texts_i_flag_does():
+    # extractUrl.js and validAsciiDomain.js carry the ``i`` flag; the composed sub-patterns inherit it.
+    assert x.weighted_len("a" * 273 + " foo.\u0420\u0424") == 297  # foo.РФ
+    with pytest.raises(ValueError, match="297 weighted"):
+        x.build_post("a" * 273 + " foo.\u0420\u0424")
+    assert x.weighted_len("a" * 267 + " foo.XN--P1AI") == 291
+    with pytest.raises(ValueError, match="291 weighted"):
+        x.build_post("a" * 267 + " foo.XN--P1AI")
+    for token in ("foo.COM", "Foo.Uk", "FOO.XN--P1AI", "foo.Xn--P1aI", "foo.\u0420\u0444", "M\u00dcNCHEN.DE", "FOO.\u4e2d\u56fd"):
+        assert x.weighted_len(token) == 23, token
+        assert x.bare_domains(token) == [(0, len(token))], token
+
+
+def test_python_ignorecase_does_not_widen_the_ascii_classes():
+    # JavaScript's non-Unicode ``i`` never folds a non-ASCII letter into [a-z]; Python's would fold
+    # İ, ı, ſ and K, so the ASCII classes are scoped (?-i:) — and NFC turns K into K first anyway.
+    assert x.weighted_len("foo.com\u017f") == 24  # TLD com, then ſ on its own: the lookahead lets it through
+    assert x.bare_domains("@\u017ffoo.com") == [(2, 9)]  # ſ is a valid preceding character, so foo.com links
+    assert x.bare_domains("foo.co\u0131") == [(0, 6)] and x.weighted_len("foo.co\u0131") == 24
+    assert x.weighted_len("\u212afoo.com") == 23  # NFC: KELVIN SIGN is K, and Kfoo.com is one link
+
+
 def test_labels_outside_the_latin_class_are_not_linked_without_a_scheme():
     # validAsciiDomain: a protocol-less domain links only through Latin labels, as twitter-text does.
     assert x.weighted_len("пример.рф") == 9  # пример.рф, literal
@@ -371,9 +393,10 @@ def test_every_linkable_token_weighs_at_least_a_url(before):
     # count is at least the count with that token replaced by a scheme URL (exactly 23).
     for after in ("", " and more", ".", ")", "日本", "\U0001f44d"):
         for name, token in _linkable_tokens():
-            text = before + token + after
-            floor = x.weighted_len(before + "https://x.co/ ") - 1 + x.weighted_len(after)
-            assert x.weighted_len(text) >= floor, (name, repr(text), x.weighted_len(text), floor)
+            for variant in (token, token.upper(), token.swapcase(), token.title()):
+                text = before + variant + after
+                floor = x.weighted_len(before + "https://x.co/ ") - 1 + x.weighted_len(after)
+                assert x.weighted_len(text) >= floor, (name, repr(text), x.weighted_len(text), floor)
 
 
 def test_excluded_contexts_stay_literal_like_twitter_text():
