@@ -23,8 +23,8 @@ jobs:
           path: _sources/tradedesk
       - uses: actions/checkout@v6
         with:
-          repository: radiusred/tradedesk-dukascopy
-          path: _sources/tradedesk-dukascopy
+          repository: radiusred/tradedesk-marketdata
+          path: _sources/tradedesk-marketdata
       - uses: actions/checkout@v6
         with:
           repository: radiusred/tradedesk-miner

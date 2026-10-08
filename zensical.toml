@@ -83,9 +83,9 @@ nav = [
       { "Writing a Strategy with tradedesk" = "projects/tradedesk/strategy_guide.md" },
       { "Contributing" = "projects/tradedesk/contributing.md" },
     ] },
-    { "tradedesk-dukascopy" = [
-      { "Overview" = "projects/tradedesk-dukascopy/index.md" },
-      { "Contributing" = "projects/tradedesk-dukascopy/contributing.md" },
+    { "tradedesk-marketdata" = [
+      { "Overview" = "projects/tradedesk-marketdata/index.md" },
+      { "Contributing" = "projects/tradedesk-marketdata/contributing.md" },
     ] },
     { "tradedesk-miner" = [
       { "Overview" = "projects/tradedesk-miner/index.md" },
