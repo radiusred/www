@@ -373,8 +373,48 @@ checkpoint on www#80 is resolved for each network's text (M9-R4).
 
 ## Result
 
-_Placeholder. Filled after the checkpoint on www#80 is resolved and the posts
-go out: the post URL and time for each network, the operator's X console
-balance before and after, the billed X cost against the expected $0.200
-(M9-R5), and the comment linking the posts on radiusred/gh-codecrew#423
-(M9-R6)._
+Posted 2026-10-24 after the operator resolved the checkpoint on www#80 with
+the amendment above
+([**Gate resolved:**, 17:51:50Z](https://github.com/radiusred/www/issues/80#issuecomment-6387553899)).
+wordy ran the two commands above without `--dry-run`, once each, Bluesky then
+X, from its clone, with each text file checked unchanged against the committed
+file immediately before its send:
+
+- **Bluesky**, 17:53:37Z —
+  <https://bsky.app/profile/radiusred.bsky.social/post/3mynb5gomnn2k>
+  (`at://did:plc:tkktcn7p42upz6lu6qwtmps2/app.bsky.feed.post/3mynb5gomnn2k`).
+  The CLI's output, verbatim (scanned, no credentials in it):
+
+  ```json
+  {"network": "bluesky", "uri": "at://did:plc:tkktcn7p42upz6lu6qwtmps2/app.bsky.feed.post/3mynb5gomnn2k", "cid": "bafyreicmf47t6ubopo2iwjke64slpo5hwgoasfkk2rpj2jk5xpgsdbbfki", "url": "https://bsky.app/profile/radiusred.bsky.social/post/3mynb5gomnn2k"}
+  ```
+
+  Verified through the public `getPosts` (read-only, unauthenticated): author
+  `radiusred.bsky.social` (`did:plc:tkktcn7p42upz6lu6qwtmps2`), `createdAt`
+  2026-10-24T17:53:37.768Z, text as committed, seven facets as measured (links
+  to the project home and the page, then #AI, #OpenSource, #AIAgents,
+  #CodeReview, #Programming), link card on `https://codecrew.works/` with the
+  title above.
+- **X**, 17:53:43Z — <https://x.com/radiusred_uk/status/2114052735301509564>,
+  id `2114052735301509564`. The CLI's output, verbatim (scanned, no
+  credentials in it):
+
+  ```json
+  {"network": "x", "id": "2114052735301509564", "url": "https://x.com/radiusred_uk/status/2114052735301509564"}
+  ```
+
+  Nothing on stderr from either command; both exited 0. No leg failed and
+  none was retried. The X verification was a plain public fetch of the post
+  URL (HTTP 200, no API call); no read of the X API was made from this task
+  after the `check` recorded above.
+- **Billed X cost: pending** the operator's console reading after the post,
+  asked for on www#80. Expected **$0.200**. No balance was given before the
+  post at the gate; the last recorded reading is **$4.80**, the balance after
+  the M8 post on 2026-09-26
+  ([console reading, www#76](https://github.com/radiusred/www/issues/76#issuecomment-5848035923)),
+  stated here as the last recorded figure, not a fresh one. The billed cost is
+  the operator's post-post reading against it, or the console's own per-post
+  figure, as M8 recorded; a figure other than $0.200 is raised on
+  radiusred/ops#37 (M9-R5).
+- **Links recorded on radiusred/gh-codecrew#423** (M9-R6 / M23-R7): the
+  comment URL is added here once posted.
