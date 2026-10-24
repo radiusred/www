@@ -12,20 +12,29 @@ day; no LinkedIn (only the launch post, the sixth, goes there — M9-R1).
 Written to the [guidelines](README.md) and the operator's rules for this
 series (M9-R2): one idea, short and plain, for someone who has never heard of
 CodeCrew. Nothing in either text is insider vocabulary — *pull request*,
-*merge*, *model* are the reader's own words, and the two agent products the
-page names as its example, Claude Code and Codex, are named rather than
-alluded to. Every claim traces to the page (table below). topos is not
-mentioned. Project home first and the page second, as everywhere.
+*model*, *blind spots* are the reader's own words. Every claim traces to the
+page (table below). topos is not mentioned. Project home first and the page
+second, as everywhere.
+
+The second paragraph of both texts is the operator's wording, from the gate
+resolution on www#80
+([2026-10-24 17:51Z](https://github.com/radiusred/www/issues/80#issuecomment-6387553899)):
+it replaced wordy's draft ("Not the same model: it tends to miss what it missed
+the first time. Let a different one look before the merge, say Claude Code
+builds and Codex reviews." on Bluesky; the same without the example on X) and
+so dropped the Claude Code / Codex example from the Bluesky text. Everything
+else is as drafted and approved. Both texts were re-measured and both dry runs
+re-run after the change.
 
 The page: <https://codecrew.works/why/second-model-review/> (verified live,
-HTTP 200, 2026-10-24 16:08Z, after the texts were measured and before the dry
-runs; the project home <https://codecrew.works/> returned 200 at the same
+HTTP 200, 2026-10-24 16:08Z, after the drafts were measured and before the first
+dry runs; the project home <https://codecrew.works/> returned 200 at the same
 time). Facts are from the page; the link card's title and description are the
 project home's own `<title>` and meta description.
 
 ## Bluesky — `radiusred.bsky.social`
 
-`announcements/bluesky-2026-10-24.txt`. **297 of 300 graphemes**, measured
+`announcements/bluesky-2026-10-24.txt`. **255 of 300 graphemes**, measured
 with `social.bluesky.grapheme_len` on the resolved text (the README's
 command). Seven facets: two links — the project home, then the page — and five
 tags. The link card is the project home.
@@ -33,7 +42,7 @@ tags. The link card is the project home.
 ```
 Who reviews your coding agent's pull requests?
 
-Not the same model: it tends to miss what it missed the first time. Let a different one look before the merge, say Claude Code builds and Codex reviews.
+If it's the same model, it will likely miss the same things. Use a different one without the same blind spots.
 
 [CodeCrew](https://codecrew.works/) sets that up on GitHub. [Here's how](https://codecrew.works/why/second-model-review/)
 
@@ -48,14 +57,15 @@ weighed at 23, inline in the body with their scheme, project home first, per
 the X URL Decision
 ([radiusred/ops#28, 2026-09-26](https://github.com/radiusred/ops/issues/28#issuecomment-5846341962)).
 No emoji, no symbols outside the Latin ranges; the apostrophes are ASCII.
-Three tags, plain text. The budget did not stretch to the Claude Code / Codex
-example the Bluesky text carries (with it the text weighs 317), so the X copy
-stops at the idea itself; the example is on the page.
+Three tags, plain text. The two texts now share their first two paragraphs
+word for word; before the operator's amendment the Bluesky draft carried the
+page's Claude Code / Codex example and the X draft did not, because with it
+the X text weighed 317.
 
 ```
 Who reviews your coding agent's pull requests?
 
-Not the same model: it tends to miss what it missed the first time. Let a different one look before the merge.
+If it's the same model, it will likely miss the same things. Use a different one without the same blind spots.
 
 CodeCrew sets that up on GitHub.
 https://codecrew.works/
@@ -69,18 +79,18 @@ https://codecrew.works/why/second-model-review/
 | claim | source |
 |---|---|
 | a coding agent opens pull requests | page: "One coding agent writes the change and opens a pull request" |
-| not the same model: it tends to miss what it missed the first time | page: "A model checking its own work tends to miss what it missed the first time"; the reviewer instructions it quotes: "self-evaluation shares the blind spots of the work itself" |
-| let a different one look before the merge | page: "A different agent, ideally running on another model or in another harness, reviews it before it merges"; "A second opinion from somewhere else is still a better bet than marking your own homework" |
-| say Claude Code builds and Codex reviews | page: "So you might have Claude Code build and Codex review, or the other way round" |
+| if it's the same model, it will likely miss the same things | page: "A model checking its own work tends to miss what it missed the first time"; the reviewer instructions it quotes: "self-evaluation shares the blind spots of the work itself" |
+| use a different one without the same blind spots | page: "A different model has blind spots too, but they are different ones"; "A different agent, ideally running on another model or in another harness, reviews it before it merges"; "A second opinion from somewhere else is still a better bet than marking your own homework" |
 | CodeCrew sets that up on GitHub | page: "CodeCrew, an extension for GitHub's gh command line, sets that up and keeps the whole exchange on GitHub"; "Who does what is a few lines in your project's settings file" |
 | card title and description | project home: `<title>` "CodeCrew — Your coding agents, working as a crew on GitHub"; meta description "Give each coding agent its own GitHub App identity, so different harnesses and models can build and review each other's work, with the record kept in GitHub." |
 | #OpenSource | project home's structured data: licence Apache-2.0, repository `github.com/radiusred/gh-codecrew` |
 
 What the texts leave out, deliberately: that no review catches every bug (the
 page says it; a post this short cannot carry the caveat without losing the
-idea), that the reviewer starts a fresh session, and that each agent can
-review under its own GitHub App. Those are the page's "three things worth
-knowing" and the second of them is post 2's idea.
+idea), the page's Claude Code / Codex example (dropped at the gate), that the
+reviewer starts a fresh session, and that each agent can review under its own
+GitHub App. The last three are the page's "three things worth knowing" and the
+second of them is post 2's idea.
 
 ## Tags — how they were chosen (measured 2026-10-24)
 
@@ -189,7 +199,7 @@ print(weighted_len(open('announcements/x-2026-10-24.txt').read().strip()))"
 ```
 
 ```
-297
+255
 275
 ```
 
@@ -212,7 +222,9 @@ leg reports the refreshed token as revoked with no scopes while still listing
 the Page it administers; LinkedIn is not a target of this post, so it is noted
 here for the launch post, which is, and not acted on.)
 
-Two commands, one per network, because X takes its own text and no link card:
+Two commands, one per network, because X takes its own text and no link card.
+Run twice: on the drafts at 16:08Z, and again on the amended texts at 17:52Z;
+the capture below is the second run, the one the posts were made from.
 
 ```sh
 uv run -m social post --to bluesky \
@@ -240,13 +252,13 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
       "collection": "app.bsky.feed.post",
       "record": {
         "$type": "app.bsky.feed.post",
-        "text": "Who reviews your coding agent's pull requests?\n\nNot the same model: it tends to miss what it missed the first time. Let a different one look before the merge, say Claude Code builds and Codex reviews.\n\nCodeCrew sets that up on GitHub. Here's how\n\n#AI #OpenSource #AIAgents #CodeReview #Programming",
-        "createdAt": "2026-10-24T16:08:21.999Z",
+        "text": "Who reviews your coding agent's pull requests?\n\nIf it's the same model, it will likely miss the same things. Use a different one without the same blind spots.\n\nCodeCrew sets that up on GitHub. Here's how\n\n#AI #OpenSource #AIAgents #CodeReview #Programming",
+        "createdAt": "2026-10-24T17:52:51.099Z",
         "facets": [
           {
             "index": {
-              "byteStart": 202,
-              "byteEnd": 210
+              "byteStart": 160,
+              "byteEnd": 168
             },
             "features": [
               {
@@ -257,8 +269,8 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
           },
           {
             "index": {
-              "byteStart": 235,
-              "byteEnd": 245
+              "byteStart": 193,
+              "byteEnd": 203
             },
             "features": [
               {
@@ -269,8 +281,8 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
           },
           {
             "index": {
-              "byteStart": 247,
-              "byteEnd": 250
+              "byteStart": 205,
+              "byteEnd": 208
             },
             "features": [
               {
@@ -281,8 +293,8 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
           },
           {
             "index": {
-              "byteStart": 251,
-              "byteEnd": 262
+              "byteStart": 209,
+              "byteEnd": 220
             },
             "features": [
               {
@@ -293,8 +305,8 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
           },
           {
             "index": {
-              "byteStart": 263,
-              "byteEnd": 272
+              "byteStart": 221,
+              "byteEnd": 230
             },
             "features": [
               {
@@ -305,8 +317,8 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
           },
           {
             "index": {
-              "byteStart": 273,
-              "byteEnd": 284
+              "byteStart": 231,
+              "byteEnd": 242
             },
             "features": [
               {
@@ -317,8 +329,8 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
           },
           {
             "index": {
-              "byteStart": 285,
-              "byteEnd": 297
+              "byteStart": 243,
+              "byteEnd": 255
             },
             "features": [
               {
@@ -347,7 +359,7 @@ uv run -m social post --to x --x-text-file announcements/x-2026-10-24.txt --dry-
     "method": "POST",
     "url": "https://api.x.com/2/tweets",
     "body": {
-      "text": "Who reviews your coding agent's pull requests?\n\nNot the same model: it tends to miss what it missed the first time. Let a different one look before the merge.\n\nCodeCrew sets that up on GitHub.\nhttps://codecrew.works/\nhttps://codecrew.works/why/second-model-review/\n\n#AIAgents #CodeReview #OpenSource"
+      "text": "Who reviews your coding agent's pull requests?\n\nIf it's the same model, it will likely miss the same things. Use a different one without the same blind spots.\n\nCodeCrew sets that up on GitHub.\nhttps://codecrew.works/\nhttps://codecrew.works/why/second-model-review/\n\n#AIAgents #CodeReview #OpenSource"
     }
   }
 }
