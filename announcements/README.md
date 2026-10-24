@@ -129,6 +129,35 @@ The operator asks for research rather than instinct.
   posts, `sort_order=recency`, `max_results=100`), costed per run before it is
   run.
 
+## Milestone-close posts
+
+Every CodeCrew milestone close comes with one Bluesky post and one X post —
+every close, the small milestones included. The duty is CodeCrew's, adopted
+as M23-R9 by the operator's Decision on
+[radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6384159987)
+(for an account with few followers, hashtags are the only reach) and written
+into that hub's
+[`doc-synthesizer.local.md`](https://github.com/radiusred/gh-codecrew/blob/main/.codecrew/roles/doc-synthesizer.local.md),
+"Close announcements — this hub", which says how the texts are written. The
+posting is this process's, and nothing above is loosened for it:
+
+- **Five relevant hashtags** on each, under the tag rules above: measured on
+  Bluesky, chosen by relevance on X until X is measured, and the draft says
+  which.
+- **The draft comes with the record.** wordy writes both texts in the
+  CodeCrew record PR's description, with the measured lengths and the tag
+  table. That draft is the starting point, not an approval: approving the
+  record PR approves the record, not the post.
+- **The post is a task here,** under the radiusred/ops hub, with its own
+  dated file in this directory and a `cc:needs-decision` checkpoint per
+  network, resolved by the operator, like any other announcement — and it
+  goes out soon after the close. Its URLs go in the file's Result section and
+  in a comment on the CodeCrew milestone issue.
+- **It costs $0.200**: one X post containing a URL, per the X budget above.
+
+M23's close ([radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423))
+is the first.
+
 ## Credentials
 
 Never in this tree: they live in `~/.config/radiusred/social.env` (see the
