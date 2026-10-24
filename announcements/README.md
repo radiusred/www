@@ -1,9 +1,10 @@
 # Announcement guidelines
 
 Standing rules for anything posted from the Radius Red accounts through the
-`social` package. They come from the operator's reviews on
+`social` package. They come from the operator's reviews and Decisions on the
+issues each section cites — the first of them
 [www#47](https://github.com/radiusred/www/issues/47) and
-[PR #54](https://github.com/radiusred/www/pull/54) and apply to every
+[PR #54](https://github.com/radiusred/www/pull/54) — and apply to every
 announcement until they are changed here.
 
 Each announcement gets a dated file in this directory — the texts, the
