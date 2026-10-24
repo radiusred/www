@@ -1,6 +1,6 @@
 Who reviews your coding agent's pull requests?
 
-Not the same model: it tends to miss what it missed the first time. Let a different one look before the merge, say Claude Code builds and Codex reviews.
+If it's the same model, it will likely miss the same things. Use a different one without the same blind spots.
 
 [CodeCrew](https://codecrew.works/) sets that up on GitHub. [Here's how](https://codecrew.works/why/second-model-review/)
 
