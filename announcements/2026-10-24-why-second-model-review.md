@@ -416,5 +416,7 @@ file immediately before its send:
   the operator's post-post reading against it, or the console's own per-post
   figure, as M8 recorded; a figure other than $0.200 is raised on
   radiusred/ops#37 (M9-R5).
-- **Links recorded on radiusred/gh-codecrew#423** (M9-R6 / M23-R7): the
-  comment URL is added here once posted.
+- **Links recorded on radiusred/gh-codecrew#423** (M9-R6 / M23-R7):
+  [comment, 2026-10-24](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6387581456).
+  The post-post console balance was asked for on www#80
+  ([comment](https://github.com/radiusred/www/issues/80#issuecomment-6387582356)).
