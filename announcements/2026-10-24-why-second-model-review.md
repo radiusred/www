@@ -407,15 +407,15 @@ file immediately before its send:
   none was retried. The X verification was a plain public fetch of the post
   URL (HTTP 200, no API call); no read of the X API was made from this task
   after the `check` recorded above.
-- **Billed X cost: pending** the operator's console reading after the post,
-  asked for on www#80. Expected **$0.200**. No balance was given before the
-  post at the gate; the last recorded reading is **$4.80**, the balance after
-  the M8 post on 2026-09-26
+- **Billed X cost: $0.200**, as expected. The console balance after the post
+  is **$4.60**
+  ([operator reading, www#80](https://github.com/radiusred/www/issues/80#issuecomment-6456044425)).
+  No balance was taken before the post at the gate, so the "before" figure is
+  the last recorded reading, **$4.80**, the balance after the M8 post on
+  2026-09-26
   ([console reading, www#76](https://github.com/radiusred/www/issues/76#issuecomment-5848035923)),
-  stated here as the last recorded figure, not a fresh one. The billed cost is
-  the operator's post-post reading against it, or the console's own per-post
-  figure, as M8 recorded; a figure other than $0.200 is raised on
-  radiusred/ops#37 (M9-R5).
+  stated as the last recorded figure, not a fresh one. $4.80 - $4.60 = $0.200,
+  the expected cost, so nothing is raised on radiusred/ops#37 (M9-R5).
 - **Links recorded on radiusred/gh-codecrew#423** (M9-R6 / M23-R7):
   [comment, 2026-10-24](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6387581456).
   The post-post console balance was asked for on www#80
