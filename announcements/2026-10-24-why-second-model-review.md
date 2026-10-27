@@ -83,7 +83,7 @@ https://codecrew.works/why/second-model-review/
 | use a different one without the same blind spots | page: "A different model has blind spots too, but they are different ones"; "A different agent, ideally running on another model or in another harness, reviews it before it merges"; "A second opinion from somewhere else is still a better bet than marking your own homework" |
 | CodeCrew sets that up on GitHub | page: "CodeCrew, an extension for GitHub's gh command line, sets that up and keeps the whole exchange on GitHub"; "Who does what is a few lines in your project's settings file" |
 | card title and description | project home: `<title>` "CodeCrew — Your coding agents, working as a crew on GitHub"; meta description "Give each coding agent its own GitHub App identity, so different harnesses and models can build and review each other's work, with the record kept in GitHub." |
-| #OpenSource | project home's structured data: licence Apache-2.0, repository `github.com/radiusred/gh-codecrew` |
+| #OpenSource | project home's structured data: licence Apache-2.0, repository `github.com/radiusred/gh-codecrew`. Traces to the project home, the post's first link, not to the /why/ page; see the [Deviation on www#80](https://github.com/radiusred/www/issues/80#issuecomment-6456142528) |
 
 What the texts leave out, deliberately: that no review catches every bug (the
 page says it; a post this short cannot carry the caveat without losing the
