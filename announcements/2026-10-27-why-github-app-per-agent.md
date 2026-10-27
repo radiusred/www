@@ -399,6 +399,41 @@ the checkpoint on www#81 is resolved for each network's text (M9-R4).
 
 ## Result
 
-_Pending the checkpoint on [www#81](https://github.com/radiusred/www/issues/81):
-the post URLs, the times, the CLI output, and the billed X cost from the
-balances before ($4.60) and after go here once the posts are out._
+Posted 2026-10-27 after the operator resolved the checkpoint on www#81 with
+"post them"
+([**Gate resolved:**, 23:46:07Z](https://github.com/radiusred/www/issues/81#issuecomment-6456401558)),
+both texts as drafted. Before sending, one dry run per network was re-run and
+matched the captured one above (the files unchanged since the commit). wordy
+ran the two commands above without `--dry-run`, once each, Bluesky then X:
+
+- **Bluesky**, 23:48:35Z —
+  <https://bsky.app/profile/radiusred.bsky.social/post/3myvgew36qt2c>
+  (`at://did:plc:tkktcn7p42upz6lu6qwtmps2/app.bsky.feed.post/3myvgew36qt2c`).
+  The CLI's output, verbatim (scanned, no credentials in it):
+
+  ```json
+  {"network": "bluesky", "uri": "at://did:plc:tkktcn7p42upz6lu6qwtmps2/app.bsky.feed.post/3myvgew36qt2c", "cid": "bafyreib2kzh5vnlx5rrjjjldsvcy2tq4rwqy7rcbg4o6qhstwe7yzfomoe", "url": "https://bsky.app/profile/radiusred.bsky.social/post/3myvgew36qt2c"}
+  ```
+
+  Verified through the public `getPosts`: author `radiusred.bsky.social`,
+  text as committed, seven facets, link card on `https://codecrew.works/`.
+- **X**, 23:48:38Z — <https://x.com/radiusred_uk/status/2115229217398870133>,
+  id `2115229217398870133`. The CLI's output, verbatim (scanned, no
+  credentials in it):
+
+  ```json
+  {"network": "x", "id": "2115229217398870133", "url": "https://x.com/radiusred_uk/status/2115229217398870133"}
+  ```
+
+  The post URL returns HTTP 200 on a plain public fetch.
+
+Nothing on stderr from either command; both exited 0, and neither was
+retried.
+
+- **X cost: $0.200**, recorded as the expected figure for one post containing
+  a URL. The balance before was $4.60; the operator cut the after-post
+  console reading from this series' ceremony on 2026-10-27, so no reading
+  after the post was taken and the figure is the expected one, not a billed
+  one read from the console.
+- **Links recorded on radiusred/gh-codecrew#423** (M9-R6 / M23-R7):
+  [comment, 2026-10-27](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6456461377).
