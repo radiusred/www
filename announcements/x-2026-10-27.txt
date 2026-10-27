@@ -1,0 +1,9 @@
+Who wrote that commit: you, or your coding agent?
+
+If it uses your GitHub token, you can't tell. Give each agent its own GitHub App, and GitHub shows who did what.
+
+CodeCrew makes each App with one command.
+https://codecrew.works/
+https://codecrew.works/why/github-app-per-agent/
+
+#AIAgents #GitHub
