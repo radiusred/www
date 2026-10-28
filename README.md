@@ -73,7 +73,10 @@ Announcements go out from Radius Red's own accounts — `radiusred.bsky.social`,
 the LinkedIn Page `linkedin.com/company/radiusred` and `@radiusred_uk` on X —
 through the `social` package in this repo. It is stdlib-only; run it with
 `uv run -m social`. This section is the social runbook; `RUNBOOK.md` is about
-serving the site.
+serving the site. The writing rules, and how a post is drafted, approved and
+recorded, are in `announcements/README.md`: the texts live in a scratch
+folder, not in this tree, and the post's record is one comment with the links
+on the CodeCrew milestone issue.
 
 **Credentials never live in this tree.** They are read from the environment
 first, then from `~/.config/radiusred/social.env` (mode 0600 in a 0700
@@ -140,10 +143,9 @@ uv run -m social comment --urn urn:li:share:123 \
   counts toward the 300) and `#hashtags` become tag facets — without the
   facet a tag is plain text and reaches nobody, so tag deliberately; on
   LinkedIn `#hashtags` become hashtag entities and URLs are left unescaped.
-  `--link` adds a link card (Bluesky) / article (LinkedIn). Posted texts are
-  kept in `announcements/`. Always `--dry-run` first —
-  it prints the exact request bodies and touches no network. Output is one
-  JSON line per network with the post URL.
+  `--link` adds a link card (Bluesky) / article (LinkedIn). Always `--dry-run`
+  first — it prints the exact request bodies and touches no network. Output is
+  one JSON line per network with the post URL.
 - `post --to x` sends the text as-is (`--x-text-file` for its own copy) and
   refuses it before any network call when it is over **280 weighted
   characters**: every URL counts as 23 whatever its length, most characters
