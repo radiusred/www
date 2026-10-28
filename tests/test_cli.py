@@ -493,6 +493,33 @@ def test_auth_x_refuses_tokens_for_another_account_and_stores_nothing(env_file, 
     assert "newtok" not in out and env_file.read_text() == before
 
 
+@pytest.mark.parametrize(
+    "failing_leg, status, body",
+    [
+        ("/oauth/request_token", 401, b'{"errors":[{"code":32,"message":"Could not authenticate you. oauth_consumer_key=xkey oauth_signature=LEAKSIG"}]}'),
+        ("/oauth/access_token", 401, b"oauth_token=LEAKTOKEN&oauth_token_secret=LEAKSECRET&error=Invalid+or+expired+token"),
+        ("/oauth/access_token", 200, b"oauth_token_secret=LEAKSECRET&screen_name=crewworks"),  # a 200 with no token is a failure too
+    ],
+)
+def test_auth_x_token_endpoint_failures_are_reported_without_the_body_and_store_nothing(
+    env_file, transport, monkeypatch, capsys, failing_leg, status, body
+):
+    before = env_file.read_text()
+    if failing_leg == "/oauth/access_token":
+        transport.expect("POST", "/oauth/request_token", body=b"oauth_token=reqtok&oauth_token_secret=REQSECRET&oauth_callback_confirmed=true")
+    transport.expect("POST", failing_leg, status=status, body=body)
+    monkeypatch.setattr("builtins.input", lambda _: "1234567")
+    rc = cli.main(["--env-file", str(env_file), "--account", "codecrew", "auth", "x"], transport=transport, environ={})
+    out, err = capsys.readouterr()
+    assert rc == 1
+    assert "nothing stored" in out and f"HTTP {status}" in out
+    step = "request token" if failing_leg.endswith("request_token") else "PIN exchange"
+    assert f"X refused the {step}" in out
+    for sentinel in ("LEAKTOKEN", "LEAKSECRET", "LEAKSIG", "REQSECRET", "xsecret", "Could not authenticate", "Invalid or expired"):
+        assert sentinel not in out and sentinel not in err, sentinel
+    assert env_file.read_text() == before
+
+
 def test_auth_x_needs_the_accounts_handle_and_the_app_keys_first(env_file, refusing_transport, capsys):
     env_file.write_text(env_file.read_text().replace("CODECREW_X_HANDLE=crewworks\n", ""))
     rc = cli.main(["--env-file", str(env_file), "--account", "codecrew", "auth", "x"], transport=refusing_transport, environ={})
