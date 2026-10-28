@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 
@@ -41,6 +42,19 @@ def refusing_transport():
         raise AssertionError(f"network touched: {method} {url}")
 
     return refuse
+
+
+class _Tty:
+    """A stdin that reports a terminal, so a command that waits for typed input
+    goes on to its (monkeypatched) ``input()``; pytest's own stdin is not one."""
+
+    def isatty(self):
+        return True
+
+
+@pytest.fixture
+def interactive(monkeypatch):
+    monkeypatch.setattr(sys, "stdin", _Tty())
 
 
 @pytest.fixture

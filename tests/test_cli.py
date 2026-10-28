@@ -1,3 +1,4 @@
+import io
 import json
 import os
 
@@ -132,7 +133,7 @@ def test_parse_callback_handles_urls_and_bare_codes():
     assert cli.parse_callback("") == (None, None)
 
 
-def test_pasted_callback_with_wrong_state_is_refused(env_file, refusing_transport, monkeypatch, capsys):
+def test_pasted_callback_with_wrong_state_is_refused(interactive, env_file, refusing_transport, monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda _: "http://localhost:8765/callback?code=abc&state=forged")
     rc = cli.main(["--env-file", str(env_file), "auth", "linkedin", "--paste"], transport=refusing_transport, environ={})
     assert rc == 1
@@ -454,7 +455,7 @@ def _pin_flow(transport, screen_name="crewworks"):
     transport.expect("POST", "/oauth/access_token", body=f"oauth_token=newtok&oauth_token_secret=newsec&user_id=77&screen_name={screen_name}".encode())
 
 
-def test_auth_x_mints_and_persists_the_accounts_tokens_without_printing_them(env_file, transport, monkeypatch, capsys):
+def test_auth_x_mints_and_persists_the_accounts_tokens_without_printing_them(interactive, env_file, transport, monkeypatch, capsys):
     _pin_flow(transport)
     prompts = []
     monkeypatch.setattr("builtins.input", lambda prompt: prompts.append(prompt) or "7654321")
@@ -473,7 +474,7 @@ def test_auth_x_mints_and_persists_the_accounts_tokens_without_printing_them(env
     assert 'oauth_consumer_key="xkey"' in transport.calls[0]["headers"]["Authorization"]  # the shared app
 
 
-def test_auth_x_for_radiusred_persists_under_the_bare_keys(env_file, transport, monkeypatch, capsys):
+def test_auth_x_for_radiusred_persists_under_the_bare_keys(interactive, env_file, transport, monkeypatch, capsys):
     _pin_flow(transport, screen_name="Example_UK")
     monkeypatch.setattr("builtins.input", lambda _: "1")
     rc = cli.main(["--env-file", str(env_file), "auth", "x"], transport=transport, environ={})
@@ -483,7 +484,7 @@ def test_auth_x_for_radiusred_persists_under_the_bare_keys(env_file, transport, 
     assert "X_ACCESS_TOKEN=newtok\n" in text and "CODECREW_X_ACCESS_TOKEN=crewtoken\n" in text
 
 
-def test_auth_x_refuses_tokens_for_another_account_and_stores_nothing(env_file, transport, monkeypatch, capsys):
+def test_auth_x_refuses_tokens_for_another_account_and_stores_nothing(interactive, env_file, transport, monkeypatch, capsys):
     before = env_file.read_text()
     _pin_flow(transport, screen_name="example_uk")  # signed in as Radius Red by mistake
     monkeypatch.setattr("builtins.input", lambda _: "1")
@@ -503,7 +504,7 @@ def test_auth_x_refuses_tokens_for_another_account_and_stores_nothing(env_file, 
     ],
 )
 def test_auth_x_token_endpoint_failures_are_reported_without_the_body_and_store_nothing(
-    env_file, transport, monkeypatch, capsys, failing_leg, status, body
+    interactive, env_file, transport, monkeypatch, capsys, failing_leg, status, body
 ):
     before = env_file.read_text()
     if failing_leg == "/oauth/access_token":
@@ -521,6 +522,30 @@ def test_auth_x_token_endpoint_failures_are_reported_without_the_body_and_store_
     assert env_file.read_text() == before
 
 
+def test_auth_x_without_a_terminal_exits_1_in_one_line_before_requesting_a_token(env_file, refusing_transport, monkeypatch, capsys):
+    """www#95: run through a non-interactive shell, input() raised EOFError
+    after the request token was minted. Now nothing is requested or stored."""
+    before = env_file.read_text()
+    monkeypatch.setattr("sys.stdin", io.StringIO())  # a pipe, not a terminal
+    rc = cli.main(["--env-file", str(env_file), "--account", "codecrew", "auth", "x"], transport=refusing_transport, environ={})
+    out, err = capsys.readouterr()
+    assert rc == 1
+    assert out == ""
+    assert err.splitlines() == [
+        "error: auth x reads the PIN from stdin and needs an interactive terminal; run it from a shell (nothing requested, nothing stored)",
+    ]
+    assert env_file.read_text() == before
+
+
+def test_auth_linkedin_paste_without_a_terminal_exits_1_in_one_line_before_any_call(env_file, refusing_transport, monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", io.StringIO())
+    rc = cli.main(["--env-file", str(env_file), "auth", "linkedin", "--paste"], transport=refusing_transport, environ={})
+    out, err = capsys.readouterr()
+    assert rc == 1
+    assert out == "", "the consent URL is not printed when the code could never be pasted"
+    assert err.count("\n") == 1 and err.startswith("error: auth linkedin --paste reads the code from stdin and needs an interactive terminal")
+
+
 def test_auth_x_needs_the_accounts_handle_and_the_app_keys_first(env_file, refusing_transport, capsys):
     env_file.write_text(env_file.read_text().replace("CODECREW_X_HANDLE=crewworks\n", ""))
     rc = cli.main(["--env-file", str(env_file), "--account", "codecrew", "auth", "x"], transport=refusing_transport, environ={})
@@ -528,7 +553,7 @@ def test_auth_x_needs_the_accounts_handle_and_the_app_keys_first(env_file, refus
     assert "error: CODECREW_X_HANDLE is not set" in capsys.readouterr().err
 
 
-def test_auth_x_with_an_empty_pin_stops_before_the_exchange(env_file, transport, monkeypatch, capsys):
+def test_auth_x_with_an_empty_pin_stops_before_the_exchange(interactive, env_file, transport, monkeypatch, capsys):
     transport.expect("POST", "/oauth/request_token", body=b"oauth_token=reqtok&oauth_token_secret=reqsec&oauth_callback_confirmed=true")
     monkeypatch.setattr("builtins.input", lambda _: "  ")
     rc = cli.main(["--env-file", str(env_file), "--account", "codecrew", "auth", "x"], transport=transport, environ={})
@@ -536,7 +561,7 @@ def test_auth_x_with_an_empty_pin_stops_before_the_exchange(env_file, transport,
     assert len(transport.calls) == 1
 
 
-def test_auth_x_env_sourced_tokens_are_not_written_and_the_warning_says_so(env_file, transport, monkeypatch, capsys):
+def test_auth_x_env_sourced_tokens_are_not_written_and_the_warning_says_so(interactive, env_file, transport, monkeypatch, capsys):
     _pin_flow(transport)
     monkeypatch.setattr("builtins.input", lambda _: "1")
     environ = {"CODECREW_X_ACCESS_TOKEN": "injected", "CODECREW_X_ACCESS_TOKEN_SECRET": "injected-s"}
