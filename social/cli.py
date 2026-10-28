@@ -34,6 +34,14 @@ def _say(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
+def _interactive() -> bool:
+    """Whether stdin is a terminal a human can type into. The auth commands
+    wait for typed input, and ``input()`` on a pipe raises EOFError after the
+    request token has already been minted (www#95)."""
+    stdin = sys.stdin
+    return stdin is not None and stdin.isatty()
+
+
 def _no_linkedin_for(creds: Credentials) -> None:
     """LinkedIn is Radius Red's only: refuse before any network call."""
     if creds.account != LINKEDIN_ACCOUNT:
@@ -432,13 +440,17 @@ def cmd_auth_linkedin(args, creds: Credentials, transport) -> int:
     refresh token expires or when the app's scopes change."""
     client = linkedin_client(creds, transport)
     redirect_uri = args.redirect_uri or creds.get("LINKEDIN_REDIRECT_URI") or "http://localhost:8765/callback"
+    parsed = urllib.parse.urlparse(redirect_uri)
+    listening = parsed.hostname in ("localhost", "127.0.0.1") and not args.paste
+    if not listening and not _interactive():
+        _say("error: auth linkedin --paste reads the code from stdin and needs an interactive terminal; run it from a shell (nothing requested, nothing stored)")
+        return 1
     url, state = client.auth_url(redirect_uri, tuple(args.scope) if args.scope else linkedin.DEFAULT_SCOPES)
     print("1. Make sure this redirect URI is registered on the app's Auth tab:", redirect_uri)
     print("2. Signed in as the Page admin, open:\n\n   " + url + "\n")
 
-    parsed = urllib.parse.urlparse(redirect_uri)
     code = None
-    if parsed.hostname in ("localhost", "127.0.0.1") and not args.paste:
+    if listening:
         print(f"3. Waiting for LinkedIn to redirect to {redirect_uri} …")
         _CodeCatcher.reset()
         with http.server.HTTPServer((parsed.hostname, parsed.port or 80), _CodeCatcher) as server:
@@ -468,6 +480,9 @@ def cmd_auth_x(args, creds: Credentials, transport) -> int:
     and persisted under its key names, never printed."""
     expected = creds.require("X_HANDLE").lstrip("@")
     consumer_key, consumer_secret = creds.require("X_API_KEY"), creds.require("X_API_SECRET")
+    if not _interactive():
+        _say("error: auth x reads the PIN from stdin and needs an interactive terminal; run it from a shell (nothing requested, nothing stored)")
+        return 1
     # A token endpoint's error body may reflect what was sent to it, so an
     # ApiError from either leg is reported by step and status alone — never
     # its body, never through main's traceback.
