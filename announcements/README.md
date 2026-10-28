@@ -1,66 +1,166 @@
-# Announcement guidelines
+# Announcement guide
 
-The writing rules for anything posted from the Radius Red accounts through the
-`social` package. They come from the operator's reviews and Decisions — the
-first of them [www#47](https://github.com/radiusred/www/issues/47) and
-[PR #54](https://github.com/radiusred/www/pull/54) — and apply to every
-announcement until they are changed here.
+How a post is written, checked and sent from our social accounts through the
+`social` package in this repo. The rules are the operator's, reviewed on
+2026-10-28 because the posts so far read as machine-written. They apply to
+every post until they are changed here.
 
 Posts are managed outside the repository (operator's Decision on
-[radiusred/ops#37](https://github.com/radiusred/ops/issues/37#issuecomment-6457195042)).
-The process is four steps:
+[radiusred/ops#37](https://github.com/radiusred/ops/issues/37#issuecomment-6457195042)):
+draft the texts in a scratch folder, one per network, and keep nothing in this
+tree. The commands are in the main README, "Posting to social accounts".
 
-1. Draft the texts in a scratch folder, one per network, measured against the
-   budgets below.
-2. The operator approves the exact text for each network. That approval is the
-   only check; nothing goes out without it.
-3. Post with `uv run -m social post` (the commands are in the main README,
-   "Posting to social accounts"). `--to` is explicit per network: nothing posts
-   to X because something was posted elsewhere, and every X post costs money.
-4. Put one comment with the post links on the CodeCrew milestone issue. That
-   comment is the only record.
+## Accounts
 
-## Write for someone who has never heard of us
+- **Radius Red**: Bluesky `radiusred.bsky.social`, X `radiusred_uk`, the
+  LinkedIn Page `linkedin.com/company/radiusred`. The CLI's default
+  (`--account radiusred`). Radius Red's own news.
+- **CodeCrew**: Bluesky `codecrew.works`, X `codecrewworks`
+  (`--account codecrew`). CodeCrew news goes out from these: releases,
+  milestone closes, merged work, the `why/` pages.
 
-Plain speech, until the project is a household name. Simple, hard-hitting,
-factual. No insider vocabulary: not "cycles", not "protocol gates", not "seats"
-or "the coordination layer" — a reader who knows neither our product nor the
-platform we are talking about should still understand what happened and why it
-mattered. Name the other products involved; do not allude to them. Anyone who
-wants the detail follows the link and reads the article, which is where the
-vocabulary belongs.
+## The voice
 
-Claims stay factual and traceable to the record. Plain does not mean loose.
+Write like a developer telling another developer what shipped. Plain,
+specific, a little dry. "We" is fine. Normal sentences, not fragments.
+
+Write for someone who has never heard of us. No insider vocabulary: not
+"cycles", not "protocol gates", not "seats" or "the coordination layer". A
+reader who knows neither our product nor the platform we are talking about
+should still understand what happened. Name the other products involved; do
+not allude to them. The detail belongs in the linked page. Claims stay
+factual and traceable to the record; plain does not mean loose.
+
+### Do
+
+- Lead with the thing itself, by name: "gh-codecrew v2.1.2 is out."
+- Give one concrete detail a developer would care about: a number, a
+  command, the bug it fixes, what the reviewer caught.
+- Use real numbers from the record, never rounded up.
+- Links: a plain label or the bare URL. On X, the link goes in a reply.
+
+### Don't (the tells in our posts so far)
+
+1. Open with a rhetorical question. ("Who reviews your coding agent's pull
+   requests?")
+2. Set up a line just to knock it down. ("Usually it listens. Usually isn't
+   good enough." "Fittingly, ...")
+3. Write slogan antitheses. ("Your task tracker keeps the chat, your repo
+   keeps the record." "lets small work stay small")
+4. List three things for rhythm. If there really are three things, list
+   them.
+5. Use call-to-action labels. ("Here's how", "Read the report to find out
+   how", "What changed")
+6. Use em dashes or colon reveals. ("puts that rule in code: the merge
+   command ...")
+7. Make a point of being agent staffed in every post, or make a joke of it.
+   ("Yes, we are agent-staffed.") Mention it now and then, in passing, and
+   always in the full form: "agent staffed, human moderated" (no hyphen).
+8. Use these words: `seamless`, `robust`, `leverage`, `unlock`,
+   `game-changer`, `delve`, `elevate`, `empower`, `journey`, `landscape`,
+   `supercharge`, `here's the thing`, `the best part`, `excited to announce`,
+   `thrilled to announce`.
+9. Hashtags: none on X. On Bluesky, at most two, and specific (#CodeReview,
+   not #AI #Programming).
+10. Emoji.
+
+### Before and after
+
+Before: "You can tell your coding agent not to merge until the tests pass and
+the work is reviewed. Usually it listens. [CodeCrew] puts that rule in code:
+the merge command checks first, and refuses if anything is missing. [Here's
+how]"
+
+After: "CodeCrew's merge command won't run until CI has passed, a second
+model has approved the PR, and nobody has an open question on the task. We
+used to put that rule in the agent's instructions. It mostly followed them."
+(Reply: https://codecrew.works/why/gates-in-code/)
+
+## Hashtags
+
+- **X: none.** They make a post look like spam and cost it reach.
+- **Bluesky: at most two**, each specific: a topic a reader would follow
+  (#CodeReview), not a generic room (#AI, #Programming). `#tags` become
+  facets; a tag without a facet is plain text and reaches nobody.
+- **LinkedIn: at most five.**
 
 ## Links
 
-- **Project home first, the article second.** Standing instruction from
-  www#47. On Bluesky both are inline links; on LinkedIn both are in the first
-  comment.
-- **No inline URLs in a LinkedIn post.** The algorithm penalises them heavily
-  even though LinkedIn wraps them in its own shortener. The body says *"Links
-  in the first comment"*, and the comment goes up immediately after the post:
+- **Bluesky: inline, as `[label](url)`.** The label is plain: the page's
+  name, or the bare URL. No call-to-action labels. Only the label counts
+  toward the 300. `--link` adds a card when the page has one worth showing.
+- **X: no URL in the body. The link goes in a reply to the post.** The reply
+  carries the URL, written in full with its scheme, and nothing it does not
+  need; when there are two, the project home comes first, then the article
+  (www#47). The post itself carries no URL and no bare domain X would
+  autolink (`codecrew.works`). Cost at the
+  [pricing verified 2026-09-26](https://docs.x.com/x-api/getting-started/pricing):
+  the plain post is $0.015 and the reply with its URL $0.200, $0.215 against
+  $0.200 for one post with the URL inline. The difference buys reach: a post
+  with a URL in its body is shown to fewer people. The `post` command's X
+  reply option sends the post and the reply in one invocation and prints
+  both URLs.
+- **LinkedIn: no inline URLs in the post.** The algorithm penalises them
+  heavily even though LinkedIn wraps them in its own shortener. The body says
+  *"Links in the first comment"*, the post carries no `--link` card, and the
+  comment goes up immediately after the post:
 
   ```sh
   uv run -m social post --to linkedin --linkedin-text-file <body>.txt   # prints the share URN
   uv run -m social comment --urn <that URN> --text-file <links>.txt
   ```
 
-  For the same reason the LinkedIn post carries **no `--link` card** — pass
-  `--link` only on the Bluesky invocation, which means the two networks are two
-  commands rather than one.
-- **X: links inline in the body.** The standing rule, recorded as the
-  operator's Decision on the milestone
-  ([radiusred/ops#28, 2026-09-26](https://github.com/radiusred/ops/issues/28#issuecomment-5846341962)),
-  is LinkedIn's: URLs go in a reply *only if that reply is free*. At the
-  [pricing verified that day](https://docs.x.com/x-api/getting-started/pricing)
-  a post containing a URL costs $0.200 and a reply containing one costs the
-  same, so a link reply buys nothing: **the URLs go in the body**, one post,
-  $0.200, instead of a plain post plus a reply at $0.215. The transport has
-  no reply path and takes no `--link` card. Project home first, the article
-  second, as everywhere; write the URLs in full with their scheme (each counts
-  as 23). If X ever bills a URL reply below a URL post, the Decision is
-  revisited on the milestone, not silently reversed.
+## Approval
+
+- **Low-risk posts need no approval.** A post is low-risk when it only
+  announces something already public on GitHub (a release, a milestone
+  close, merged work) and says only what the GitHub event and its linked
+  record say. It goes out once it passes `social lint`.
+- **Everything else the operator approves, the exact text for each
+  network, before it goes out:** opinion, comparisons, any claim beyond the
+  record (the `why/` pages, "compared", the invite), every reply, and every
+  LinkedIn post.
+- **Lint failing means no auto-post.** The draft goes to the operator
+  instead. An operator-approved text that lint still fails is sent with
+  `post --skip-lint`.
+- **The record is one comment.** Every post's links go in one comment on the
+  milestone issue the post belongs to, when there is one. That comment is
+  the only record.
+
+## The check: `social lint`
+
+```sh
+uv run -m social lint --to x --text-file x.txt          # or --to bluesky, --to linkedin; or --text
+```
+
+It prints each failure with the rule and the offending fragment and exits 1
+on any failure, 0 when the text is clean. `post` runs it on each network's
+text before any network call, dry run included, and refuses a failing text.
+The rules it checks:
+
+- an em dash anywhere;
+- a first sentence ending in a question mark;
+- any word or phrase from the list in Don't 8, case-insensitive, as a whole
+  word, inflections included;
+- more hashtags than the network allows: X 0, Bluesky 2, LinkedIn 5;
+- a URL, or a bare domain X would autolink, in an X text;
+- "agent-staffed" with a hyphen, or "agent staffed" not followed by ", human
+  moderated".
+
+The banned list and the limits live in `social/lint.py`; a test pins that
+this guide and the code agree. The rest of the voice is judgment, and the
+operator's review of this guide stands in for reviewing every low-risk post.
+
+## Milestone-close posts
+
+Every CodeCrew milestone close comes with one Bluesky post and one X post,
+every close, the small milestones included, from the CodeCrew accounts, in
+the voice above (the operator's Decision on
+[radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6467856741)).
+A close post only announces something already public on GitHub, so it is
+low-risk: it needs no per-post approval when it passes `social lint`. The X
+link goes in the reply, so a close costs $0.215 on X. One comment with the
+post links goes on the milestone issue.
 
 ## Bluesky budget
 
@@ -72,12 +172,11 @@ t=open('<draft>.txt').read().strip(); r,_=facets(t); print(grapheme_len(r))"
 ```
 
 Only the *label* of a `[label](url)` counts toward the limit, so link labels
-are short and URLs cost nothing. `#tags` become facets; a tag without a facet
-is plain text and reaches nobody.
+are short and URLs cost nothing.
 
 ## X budget
 
-280 weighted characters — X's rule, not a plain count — measured the same way:
+280 weighted characters, X's rule, not a plain count, measured the same way:
 
 ```sh
 python3 -c "import sys; sys.path.insert(0,'.'); from social.x import weighted_len; \
@@ -86,66 +185,17 @@ print(weighted_len(open('<draft>.txt').read().strip()))"
 
 Every URL counts as **23** whatever its length, and a bare domain X would
 autolink (`radiusred.uk`, `codecrew.works/blog`) is weighed as a URL too, at
-23 or its literal weight, whichever is larger — the guard never under-counts.
-Most characters count 1;
-CJK, emoji (a whole sequence, skin tone and all, is one emoji at 2) and
-symbols outside the Latin ranges — `€`, the bullet `•` — count 2; the em dash
-and curly quotes count 1. The X text is its own draft: plain URLs, no
-`[label](url)` (that is Bluesky syntax and X would print it verbatim), `#tags`
-as plain text. `post --to x` refuses an over-length text before it touches the
-network, and X would refuse it too — after billing the try. Costs at the
+23 or its literal weight, whichever is larger. The guard never under-counts.
+Most characters count 1; CJK, emoji and symbols outside the Latin ranges
+(`€`, the bullet `•`) count 2; curly quotes count 1. The X text is its own
+draft: no URL (it goes in the reply), no `[label](url)` (that is Bluesky
+syntax and X would print it verbatim), no `#tags`. `post --to x` refuses an
+over-length text before it touches the network, and X would refuse it too,
+after billing the try. Costs at the
 [pricing verified 2026-09-26](https://docs.x.com/x-api/getting-started/pricing):
-$0.015 per post, $0.200 per post containing a URL, credits bought up front;
-an announcement carries links, so budget $0.200 per announcement.
-
-## Tags are measured, not guessed
-
-The operator asks for research rather than instinct.
-
-- **Bluesky:** volume through the authenticated `app.bsky.feed.searchPosts`
-  (the public appview refuses an unauthenticated caller), reported as *hours
-  for a tag to accumulate its latest 100 posts* — smaller is busier. Keep the
-  metric identical between announcements so the runs are comparable, and
-  re-measure each time; the table goes to the operator with the draft. Measure
-  the obvious tags too: the ones instinct reaches for are often empty rooms.
-- **LinkedIn:** 3–5 tags. Follower counts are no longer exposed in the feed,
-  so cite published guide figures and the tier they imply — at most one Tier-1
-  (1M+) anchor, Tier-2 (100K–1M) as the workhorses, Tier-3 (10K–100K) where
-  engagement is highest. A tag with no published figure is chosen on relevance
-  and *said to be*, not dressed up as a measurement.
-- **X: unmeasured, for now.** The Bluesky method needs a search endpoint, and
-  on X's pay-per-use project `GET /2/tweets/search/recent` is billed per post
-  returned ($0.005 each at the pricing verified 2026-09-26; a 100-post sample
-  per candidate tag is $0.50, twenty candidates $10), so no measurement has
-  been made (M7-R4, [radiusred/ops#28](https://github.com/radiusred/ops/issues/28)).
-  Until it is measured, X tags are chosen on relevance, leaning on the
-  Bluesky table for the same announcement, and the draft says so plainly, as
-  the LinkedIn rule does. Revisit once credits exist: the method would be the
-  Bluesky one (hours for a tag to accumulate its latest 100 posts,
-  `sort_order=recency`, `max_results=100`), costed per run before it is run.
-
-## Milestone-close posts
-
-Every CodeCrew milestone close comes with one Bluesky post and one X post —
-every close, the small milestones included. The duty is CodeCrew's, adopted
-as M23-R9 by the operator's Decision on
-[radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6384159987)
-(for an account with few followers, hashtags are the only reach) and written
-into that hub's
-[`doc-synthesizer.local.md`](https://github.com/radiusred/gh-codecrew/blob/main/.codecrew/roles/doc-synthesizer.local.md),
-"Close announcements — this hub", which says how the texts are written.
-Nothing above is loosened for it:
-
-- **Five relevant hashtags** on each, under the tag rules above: measured on
-  Bluesky, chosen by relevance on X until X is measured, and the draft says
-  which.
-- **The draft comes with the record.** wordy writes both texts in the
-  CodeCrew record PR's description, with the measured lengths and the tag
-  table. Approving the record PR approves the record, not the post: the
-  operator approves the texts separately, and the post goes out by the four
-  steps above, soon after the close, with its links in one comment on the
-  milestone issue.
-- **It costs $0.200**: one X post containing a URL, per the X budget above.
+$0.015 per post, $0.200 per post containing a URL, credits bought up front.
+An announcement is a post plus a link reply, so budget $0.215 per
+announcement.
 
 ## Credentials
 
@@ -156,4 +206,5 @@ proves them without posting; `--dry-run` prints the exact request bodies and
 touches no network. Neither output is committed anywhere. The X keys and their
 pitfall (the 25-character OAuth 1.0 Consumer Key, not the 34-character OAuth
 2.0 Client ID) are in the main README; `check` verifies the tokens belong to
-`@radiusred_uk`, and reports an account with no credits as *out of credits*.
+the account's handle, and reports an account with no credits as *out of
+credits*.
