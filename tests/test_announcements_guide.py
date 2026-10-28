@@ -2,13 +2,17 @@
 
 The operator's Decision on radiusred/ops#37 retired the per-post trail: no
 dated record, no committed text file, no per-network checkpoint, no captured
-check or --dry-run output. What stays is the guide. These tests pin that the
-trail does not drift back and that the guide still carries what the Decision
-kept (radiusred/www#89).
+check or --dry-run output (radiusred/www#89). The 2026-10-28 voice rules then
+rewrote the guide (radiusred/www#92, M10-R3): these tests pin that the trail
+does not drift back, that the rules the rewrite replaced stay gone, and that
+the guide's mechanical list agrees with ``social/lint.py``.
 """
 
 import os
+import re
 from pathlib import Path
+
+from social import lint
 
 GUIDE = Path("announcements/README.md")
 README = Path("README.md")
@@ -23,12 +27,37 @@ PER_POST_RULES = (
     "the table goes in the announcement file",
 )
 
+# What the 2026-10-28 rules replaced: five hashtags, measured tags, inline X
+# links and the 2026-09-26 Decision for them, approval of every post.
+REPLACED_RULES = (
+    "Five relevant hashtags",
+    "Tags are measured, not guessed",
+    "hours for a tag to accumulate",
+    "links inline in the body",
+    "the URLs go in the body",
+    "issuecomment-5846341962",
+    "approval is the only check",
+    "nothing goes out without it",
+)
+
 
 def _social_section(readme_text):
     """The main README's social runbook, from its heading to the next H2."""
     _, _, rest = readme_text.partition("## Posting to social accounts")
     assert rest, "README.md has no 'Posting to social accounts' section"
     return rest.split("\n## ", 1)[0]
+
+
+def _flat(text):
+    """The guide with its line wrapping undone, so a phrase matches wherever it breaks."""
+    return re.sub(r"\s+", " ", text)
+
+
+def _banned_words_in_the_guide(text):
+    """The backticked items of the Don't list's 'Use these words' entry."""
+    match = re.search(r"Use these words:(.*?)(?=\n\d+\.|\n\n)", text, re.S)
+    assert match, "the guide has no 'Use these words' entry"
+    return re.findall(r"`([^`]+)`", match.group(1))
 
 
 def test_announcements_holds_only_the_guide():
@@ -43,32 +72,80 @@ def test_guide_documents_both_measuring_commands():
     assert "280 weighted characters" in text
 
 
-def test_guide_describes_the_four_step_process():
-    text = GUIDE.read_text()
-    assert "operator approves the exact text" in text
-    assert "uv run -m social post" in text
-    assert "comment with the post links on the CodeCrew milestone issue" in text
-    assert "radiusred/ops/issues/37" in text, "the guide cites the Decision it follows"
+def test_guide_describes_posting_and_the_record():
+    text = _flat(GUIDE.read_text())
+    assert "the operator approves, the exact text" in text
+    assert "uv run -m social lint" in text and "uv run -m social post" in text
+    assert "Every post's links go in one comment on the milestone issue the post belongs to" in text
+    assert "radiusred/ops/issues/37" in text, "the guide cites the Decision that moved posts out of the tree"
+    assert "issuecomment-6467856741" in text, "the guide cites the Decision that reshaped the close post"
 
 
-def test_guide_keeps_the_writing_rules():
+def test_guide_keeps_its_sections():
     text = GUIDE.read_text()
     for heading in (
-        "## Write for someone who has never heard of us",
+        "## Accounts",
+        "## The voice",
+        "### Do",
+        "### Don't",
+        "### Before and after",
+        "## Hashtags",
         "## Links",
+        "## Approval",
+        "## The check: `social lint`",
+        "## Milestone-close posts",
         "## Bluesky budget",
         "## X budget",
-        "## Tags are measured, not guessed",
-        "## Milestone-close posts",
         "## Credentials",
     ):
         assert heading in text, f"{heading!r} is missing from the guide"
+
+
+def test_guide_names_both_account_sets():
+    text = GUIDE.read_text()
+    for handle in ("radiusred.bsky.social", "radiusred_uk", "codecrew.works", "codecrewworks"):
+        assert f"`{handle}`" in text
+
+
+def test_guide_carries_the_voice_rules():
+    text = _flat(GUIDE.read_text())
+    assert "Write like a developer telling another developer what shipped" in text
+    assert "Write for someone who has never heard of us" in text
+    assert '"agent staffed, human moderated" (no hyphen)' in text
+    assert "Open with a rhetorical question" in text
+    assert "Use call-to-action labels" in text
+    assert "Use em dashes or colon reveals" in text
+    assert "Hashtags: none on X. On Bluesky, at most two, and specific" in text
+    assert "On X, the link goes in a reply" in text
+
+
+def test_guide_has_no_em_dash_of_its_own():
+    assert lint.EM_DASH not in GUIDE.read_text()
+
+
+def test_guide_banned_list_matches_the_code():
+    assert _banned_words_in_the_guide(GUIDE.read_text()) == list(lint.BANNED)
+
+
+def test_guide_hashtag_limits_match_the_code():
+    text = GUIDE.read_text()
+    match = re.search(r"X (\d+), Bluesky (\d+), LinkedIn (\d+)", text)
+    assert match, "the guide states the three limits in one line"
+    assert tuple(int(n) for n in match.groups()) == (
+        lint.HASHTAG_LIMITS["x"], lint.HASHTAG_LIMITS["bluesky"], lint.HASHTAG_LIMITS["linkedin"],
+    )
 
 
 def test_guide_no_longer_asks_for_a_per_post_trail():
     text = GUIDE.read_text()
     for rule in PER_POST_RULES:
         assert rule not in text, f"{rule!r} is a per-post rule the Decision retired"
+
+
+def test_guide_no_longer_carries_the_rules_the_voice_review_replaced():
+    text = GUIDE.read_text()
+    for rule in REPLACED_RULES:
+        assert rule not in text, f"{rule!r} was replaced on 2026-10-28, not kept beside the new rule"
 
 
 def test_readme_no_longer_says_posted_texts_are_kept_in_the_tree():
@@ -85,3 +162,9 @@ def test_readme_runbook_covers_both_accounts_auth_x_and_replies():
     ):
         assert needle in section, f"{needle!r} is missing from the social runbook"
     assert "there is no reply command" not in section
+
+
+def test_readme_lists_lint():
+    section = _social_section(README.read_text())
+    assert "uv run -m social lint" in section
+    assert "--skip-lint" in section
