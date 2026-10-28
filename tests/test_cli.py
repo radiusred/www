@@ -400,7 +400,7 @@ def test_codecrew_account_without_its_keys_names_the_prefixed_key(env_file, refu
     assert "error: CODECREW_X_HANDLE is not set" in capsys.readouterr().err
 
 
-def test_codecrew_account_refuses_linkedin_before_any_network_call(env_file, refusing_transport, tmp_path):
+def test_codecrew_account_refuses_linkedin_before_any_network_call(interactive, env_file, refusing_transport, tmp_path):
     for argv in (
         ["post", "--to", "linkedin", "--text", "hi"],
         ["post", "--to", "bluesky", "--to", "linkedin", "--text", "hi"],
@@ -546,7 +546,27 @@ def test_auth_linkedin_paste_without_a_terminal_exits_1_in_one_line_before_any_c
     assert err.count("\n") == 1 and err.startswith("error: auth linkedin --paste reads the code from stdin and needs an interactive terminal")
 
 
-def test_auth_x_needs_the_accounts_handle_and_the_app_keys_first(env_file, refusing_transport, capsys):
+@pytest.mark.parametrize(
+    "argv, line",
+    [
+        (["--account", "codecrew", "auth", "x"], "error: auth x reads the PIN from stdin and needs an interactive terminal; run it from a shell (nothing requested, nothing stored)"),
+        (["auth", "linkedin", "--paste"], "error: auth linkedin --paste reads the code from stdin and needs an interactive terminal; run it from a shell (nothing requested, nothing stored)"),
+    ],
+)
+def test_auth_without_a_terminal_reports_the_terminal_even_with_no_credentials(tmp_path, refusing_transport, monkeypatch, capsys, argv, line):
+    """PR #97 review: the terminal guard runs before any credential is required,
+    so an empty env file does not turn the one line into a missing-key exit 2."""
+    empty = tmp_path / "empty.env"
+    empty.write_text("")
+    monkeypatch.setattr("sys.stdin", io.StringIO())
+    rc = cli.main(["--env-file", str(empty), *argv], transport=refusing_transport, environ={})
+    out, err = capsys.readouterr()
+    assert rc == 1
+    assert out == "" and err.splitlines() == [line]
+    assert empty.read_text() == ""
+
+
+def test_auth_x_needs_the_accounts_handle_and_the_app_keys_first(interactive, env_file, refusing_transport, capsys):
     env_file.write_text(env_file.read_text().replace("CODECREW_X_HANDLE=crewworks\n", ""))
     rc = cli.main(["--env-file", str(env_file), "--account", "codecrew", "auth", "x"], transport=refusing_transport, environ={})
     assert rc == 2
