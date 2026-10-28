@@ -1,27 +1,24 @@
 # Announcement guidelines
 
-Standing rules for anything posted from the Radius Red accounts through the
-`social` package. They come from the operator's reviews and Decisions on the
-issues each section cites — the first of them
-[www#47](https://github.com/radiusred/www/issues/47) and
+The writing rules for anything posted from the Radius Red accounts through the
+`social` package. They come from the operator's reviews and Decisions — the
+first of them [www#47](https://github.com/radiusred/www/issues/47) and
 [PR #54](https://github.com/radiusred/www/pull/54) — and apply to every
 announcement until they are changed here.
 
-Each announcement gets a dated file in this directory — the texts, the
-research behind the tags, the exact commands, the captured `--dry-run`, and a
-Result section that takes the post URLs after they go out. The posting itself
-is a gated act: a `cc:needs-decision` checkpoint on the task issue, resolved by
-the operator, and the PR merges after the URLs are in the file.
+Posts are managed outside the repository (operator's Decision on
+[radiusred/ops#37](https://github.com/radiusred/ops/issues/37#issuecomment-6457195042)).
+The process is four steps:
 
-The gate is per announcement and per network, and X is no exception: an X
-post goes out only when its checkpoint names it, run by hand with
-`post --to x`, one announcement at a time. There is no automated
-cross-posting — nothing posts to X because something was posted elsewhere —
-and no backfill: announcements that went out before the X account existed
-stay where they are (M7-R7 on
-[radiusred/ops#28](https://github.com/radiusred/ops/issues/28)). Every X post
-costs money (see the X budget below), which is one more reason the gate is
-per post.
+1. Draft the texts in a scratch folder, one per network, measured against the
+   budgets below.
+2. The operator approves the exact text for each network. That approval is the
+   only check; nothing goes out without it.
+3. Post with `uv run -m social post` (the commands are in the main README,
+   "Posting to social accounts"). `--to` is explicit per network: nothing posts
+   to X because something was posted elsewhere, and every X post costs money.
+4. Put one comment with the post links on the CodeCrew milestone issue. That
+   comment is the only record.
 
 ## Write for someone who has never heard of us
 
@@ -62,9 +59,8 @@ Claims stay factual and traceable to the record. Plain does not mean loose.
   $0.200, instead of a plain post plus a reply at $0.215. The transport has
   no reply path and takes no `--link` card. Project home first, the article
   second, as everywhere; write the URLs in full with their scheme (each counts
-  as 23). Once the account has credits, the first billed post is checked
-  against the console's usage; if X ever bills a URL reply below a URL post,
-  the Decision is revisited on the milestone, not silently reversed.
+  as 23). If X ever bills a URL reply below a URL post, the Decision is
+  revisited on the milestone, not silently reversed.
 
 ## Bluesky budget
 
@@ -72,7 +68,7 @@ Claims stay factual and traceable to the record. Plain does not mean loose.
 
 ```sh
 python3 -c "import sys; sys.path.insert(0,'.'); from social.bluesky import grapheme_len, facets; \
-t=open('announcements/<file>.txt').read().strip(); r,_=facets(t); print(grapheme_len(r))"
+t=open('<draft>.txt').read().strip(); r,_=facets(t); print(grapheme_len(r))"
 ```
 
 Only the *label* of a `[label](url)` counts toward the limit, so link labels
@@ -85,7 +81,7 @@ is plain text and reaches nobody.
 
 ```sh
 python3 -c "import sys; sys.path.insert(0,'.'); from social.x import weighted_len; \
-print(weighted_len(open('announcements/<file>.txt').read().strip()))"
+print(weighted_len(open('<draft>.txt').read().strip()))"
 ```
 
 Every URL counts as **23** whatever its length, and a bare domain X would
@@ -94,11 +90,11 @@ autolink (`radiusred.uk`, `codecrew.works/blog`) is weighed as a URL too, at
 Most characters count 1;
 CJK, emoji (a whole sequence, skin tone and all, is one emoji at 2) and
 symbols outside the Latin ranges — `€`, the bullet `•` — count 2; the em dash
-and curly quotes count 1. The X text is its own file (`x-<date>.txt`): plain
-URLs, no `[label](url)` (that is Bluesky syntax and X would print it
-verbatim), `#tags` as plain text. `post --to x` refuses an over-length text
-before it touches the network, and X would refuse it too — after billing the
-try. Costs at the [pricing verified 2026-09-26](https://docs.x.com/x-api/getting-started/pricing):
+and curly quotes count 1. The X text is its own draft: plain URLs, no
+`[label](url)` (that is Bluesky syntax and X would print it verbatim), `#tags`
+as plain text. `post --to x` refuses an over-length text before it touches the
+network, and X would refuse it too — after billing the try. Costs at the
+[pricing verified 2026-09-26](https://docs.x.com/x-api/getting-started/pricing):
 $0.015 per post, $0.200 per post containing a URL, credits bought up front;
 an announcement carries links, so budget $0.200 per announcement.
 
@@ -110,8 +106,8 @@ The operator asks for research rather than instinct.
   (the public appview refuses an unauthenticated caller), reported as *hours
   for a tag to accumulate its latest 100 posts* — smaller is busier. Keep the
   metric identical between announcements so the runs are comparable, and
-  re-measure each time; the table goes in the announcement file. Measure the
-  obvious tags too: the ones instinct reaches for are often empty rooms.
+  re-measure each time; the table goes to the operator with the draft. Measure
+  the obvious tags too: the ones instinct reaches for are often empty rooms.
 - **LinkedIn:** 3–5 tags. Follower counts are no longer exposed in the feed,
   so cite published guide figures and the tier they imply — at most one Tier-1
   (1M+) anchor, Tier-2 (100K–1M) as the workhorses, Tier-3 (10K–100K) where
@@ -120,15 +116,13 @@ The operator asks for research rather than instinct.
 - **X: unmeasured, for now.** The Bluesky method needs a search endpoint, and
   on X's pay-per-use project `GET /2/tweets/search/recent` is billed per post
   returned ($0.005 each at the pricing verified 2026-09-26; a 100-post sample
-  per candidate tag is $0.50, twenty candidates $10) — and the account has no
-  credits, so no measurement was possible when the transport was added
-  (M7-R4, [radiusred/ops#28](https://github.com/radiusred/ops/issues/28)).
+  per candidate tag is $0.50, twenty candidates $10), so no measurement has
+  been made (M7-R4, [radiusred/ops#28](https://github.com/radiusred/ops/issues/28)).
   Until it is measured, X tags are chosen on relevance, leaning on the
-  Bluesky table for the same announcement, and the announcement file says so
-  plainly, as the LinkedIn rule does. Revisit once credits exist: the method
-  would be the Bluesky one (hours for a tag to accumulate its latest 100
-  posts, `sort_order=recency`, `max_results=100`), costed per run before it is
-  run.
+  Bluesky table for the same announcement, and the draft says so plainly, as
+  the LinkedIn rule does. Revisit once credits exist: the method would be the
+  Bluesky one (hours for a tag to accumulate its latest 100 posts,
+  `sort_order=recency`, `max_results=100`), costed per run before it is run.
 
 ## Milestone-close posts
 
@@ -139,25 +133,19 @@ as M23-R9 by the operator's Decision on
 (for an account with few followers, hashtags are the only reach) and written
 into that hub's
 [`doc-synthesizer.local.md`](https://github.com/radiusred/gh-codecrew/blob/main/.codecrew/roles/doc-synthesizer.local.md),
-"Close announcements — this hub", which says how the texts are written. The
-posting is this process's, and nothing above is loosened for it:
+"Close announcements — this hub", which says how the texts are written.
+Nothing above is loosened for it:
 
 - **Five relevant hashtags** on each, under the tag rules above: measured on
   Bluesky, chosen by relevance on X until X is measured, and the draft says
   which.
 - **The draft comes with the record.** wordy writes both texts in the
   CodeCrew record PR's description, with the measured lengths and the tag
-  table. That draft is the starting point, not an approval: approving the
-  record PR approves the record, not the post.
-- **The post is a task here,** under the radiusred/ops hub, with its own
-  dated file in this directory and a `cc:needs-decision` checkpoint per
-  network, resolved by the operator, like any other announcement — and it
-  goes out soon after the close. Its URLs go in the file's Result section and
-  in a comment on the CodeCrew milestone issue.
+  table. Approving the record PR approves the record, not the post: the
+  operator approves the texts separately, and the post goes out by the four
+  steps above, soon after the close, with its links in one comment on the
+  milestone issue.
 - **It costs $0.200**: one X post containing a URL, per the X budget above.
-
-M23's close ([radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423))
-is the first.
 
 ## Credentials
 
@@ -165,8 +153,7 @@ Never in this tree: they live in `~/.config/radiusred/social.env` (see the
 main README, "Posting to social accounts"; the old `~/.config/codecrew/`
 location is read only until the file is moved). `uv run -m social check`
 proves them without posting; `--dry-run` prints the exact request bodies and
-touches no network. Both outputs are captured into the announcement file, and
-scanned for tokens before they are committed. The X keys and their pitfall
-(the 25-character OAuth 1.0 Consumer Key, not the 34-character OAuth 2.0
-Client ID) are in the main README; `check` verifies the tokens belong to
+touches no network. Neither output is committed anywhere. The X keys and their
+pitfall (the 25-character OAuth 1.0 Consumer Key, not the 34-character OAuth
+2.0 Client ID) are in the main README; `check` verifies the tokens belong to
 `@radiusred_uk`, and reports an account with no credits as *out of credits*.
