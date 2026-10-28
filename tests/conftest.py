@@ -61,5 +61,11 @@ def env_file(tmp_path):
         "X_API_SECRET=xsecret\n"
         "X_ACCESS_TOKEN=xtoken\n"
         "X_ACCESS_TOKEN_SECRET=xtokensecret\n"
+        "# the second account, under the same X app (www#91)\n"
+        "CODECREW_BSKY_HANDLE=crew.example\n"
+        "CODECREW_BSKY_APP_PASSWORD=crew-pass\n"
+        "CODECREW_X_HANDLE=crewworks\n"
+        "CODECREW_X_ACCESS_TOKEN=crewtoken\n"
+        "CODECREW_X_ACCESS_TOKEN_SECRET=crewtokensecret\n"
     )
     return path

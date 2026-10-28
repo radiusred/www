@@ -165,3 +165,72 @@ def test_persist_makes_an_existing_permissive_directory_private(paths):
     assert oct(os.stat(new.parent).st_mode & 0o777) == "0o700"
     assert oct(os.stat(new).st_mode & 0o777) == "0o600"
     assert "LINKEDIN_ACCESS_TOKEN=fresh\n" in new.read_text() and "BSKY_HANDLE=old\n" in new.read_text()
+
+
+# --- two accounts in one file (www#91, M10-R1) --------------------------------
+
+
+def test_default_scope_is_radiusred_and_reads_the_bare_keys(env_file):
+    creds = load_credentials(env_file, {})
+    assert creds.account == "radiusred"
+    assert creds.get("X_HANDLE") == "example_uk" and creds.get("BSKY_HANDLE") == "example.bsky.social"
+    assert creds.key("X_HANDLE") == "X_HANDLE"
+
+
+def test_codecrew_scope_reads_the_prefixed_keys_and_the_shared_app_keys(env_file):
+    creds = load_credentials(env_file, {}).scoped("codecrew")
+    assert creds.account == "codecrew"
+    assert creds.get("BSKY_HANDLE") == "crew.example" and creds.get("BSKY_APP_PASSWORD") == "crew-pass"
+    assert creds.get("X_HANDLE") == "crewworks"
+    assert creds.get("X_ACCESS_TOKEN") == "crewtoken" and creds.get("X_ACCESS_TOKEN_SECRET") == "crewtokensecret"
+    # the X app is shared: consumer key and secret are the bare keys for both accounts
+    assert creds.get("X_API_KEY") == "xkey" and creds.get("X_API_SECRET") == "xsecret"
+    assert creds.key("X_API_KEY") == "X_API_KEY" and creds.key("X_ACCESS_TOKEN") == "CODECREW_X_ACCESS_TOKEN"
+    # LinkedIn keys are not per account
+    assert creds.key("LINKEDIN_ORG_URN") == "LINKEDIN_ORG_URN" and creds.get("LINKEDIN_ORG_URN") == "urn:li:organization:42"
+
+
+def test_codecrew_scope_names_the_prefixed_key_when_it_is_missing(env_file):
+    env_file.write_text("\n".join(l for l in env_file.read_text().splitlines() if not l.startswith("CODECREW_")) + "\n")
+    creds = load_credentials(env_file, {}).scoped("codecrew")
+    with pytest.raises(MissingCredential, match="CODECREW_X_ACCESS_TOKEN is not set in the environment or .*social.env"):
+        creds.require("X_ACCESS_TOKEN")
+    assert creds.get("X_HANDLE") is None
+    assert creds.scoped("radiusred").get("X_HANDLE") == "example_uk"  # Radius Red's are untouched
+
+
+def test_scoped_persist_writes_the_prefixed_keys_only(env_file):
+    creds = load_credentials(env_file, {}).scoped("codecrew")
+    assert creds.persist({"X_ACCESS_TOKEN": "minted", "X_ACCESS_TOKEN_SECRET": "minted-secret"}) == []
+    text = env_file.read_text()
+    assert "CODECREW_X_ACCESS_TOKEN=minted\n" in text and "CODECREW_X_ACCESS_TOKEN_SECRET=minted-secret\n" in text
+    assert "X_ACCESS_TOKEN=xtoken\n" in text and "X_ACCESS_TOKEN_SECRET=xtokensecret\n" in text
+    assert creds.get("X_ACCESS_TOKEN") == "minted" and creds.scoped("radiusred").get("X_ACCESS_TOKEN") == "xtoken"
+
+
+def test_environment_wins_over_file_for_the_prefixed_keys_too(env_file):
+    creds = load_credentials(env_file, {"CODECREW_X_ACCESS_TOKEN": "from-env", "X_ACCESS_TOKEN": "rr-from-env"})
+    assert creds.from_env == {"CODECREW_X_ACCESS_TOKEN", "X_ACCESS_TOKEN"}
+    crew = creds.scoped("codecrew")
+    assert crew.get("X_ACCESS_TOKEN") == "from-env" and creds.get("X_ACCESS_TOKEN") == "rr-from-env"
+    assert crew.persist({"X_ACCESS_TOKEN": "minted", "X_ACCESS_TOKEN_SECRET": "s"}) == ["CODECREW_X_ACCESS_TOKEN"]
+    text = env_file.read_text()
+    assert "CODECREW_X_ACCESS_TOKEN=crewtoken\n" in text  # env value never written
+    assert "CODECREW_X_ACCESS_TOKEN_SECRET=s\n" in text
+
+
+def test_scoped_is_a_view_over_the_same_values(env_file):
+    creds = load_credentials(env_file, {})
+    crew = creds.scoped("codecrew")
+    crew.persist({"BSKY_APP_PASSWORD": "rotated"})
+    assert creds.values["CODECREW_BSKY_APP_PASSWORD"] == "rotated"
+    assert creds.get("BSKY_APP_PASSWORD") == "app-pass"
+    with pytest.raises(ValueError, match="unknown account 'nobody'"):
+        creds.scoped("nobody")
+
+
+def test_every_per_account_key_has_a_codecrew_name_in_keys():
+    for key in config.PER_ACCOUNT_KEYS:
+        assert key in config.KEYS and "CODECREW_" + key in config.KEYS
+    for shared in ("X_API_KEY", "X_API_SECRET", "LINKEDIN_CLIENT_ID"):
+        assert "CODECREW_" + shared not in config.KEYS
