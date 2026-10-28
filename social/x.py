@@ -1,9 +1,11 @@
-"""X: OAuth 1.0a user context (HMAC-SHA1, signed in the stdlib) and one post.
+"""X: OAuth 1.0a user context (HMAC-SHA1, signed in the stdlib), posts and replies.
 
-The tokens are generated once for the account with Read and write and never
-expire or rotate, so nothing here writes back to the env file. Links go
-inline in the body (the milestone Decision on radiusred/ops#28): there is no
-card and no reply path.
+The user tokens never expire or rotate. For the first account they were
+generated in the Developer Console; for any other account under the same app
+the PIN-based three-legged flow here mints them (``request_token`` →
+``authorize_url`` → ``access_token``), and the CLI persists them. A post can
+be a reply (``reply.in_reply_to_tweet_id``); there is still no link card, and
+since radiusred/ops#38 a post's links go in a reply rather than the body.
 """
 
 from __future__ import annotations
@@ -16,11 +18,15 @@ import re
 import secrets as _secrets
 import time
 import unicodedata
+import urllib.parse
 
 from .transport import ApiError, Response
 
 API = "https://api.x.com"
 CONSOLE = "https://console.x.com/"
+# A post ID, or the status URL the web client shows for it.
+POST_ID_RE = re.compile(r"^\d+$")
+STATUS_URL_RE = re.compile(r"^https?://(?:www\.|mobile\.)?(?:x|twitter)\.com/(?:[^/?#]+/)+status(?:es)?/(\d+)(?:[/?#].*)?$")
 # X's weighted count (twitter-text config v3): 280, every URL 23 whatever its
 # length, code points in these ranges 1, everything else 2 — CJK included —
 # and an emoji sequence 2 as one. docs.x.com "Counting characters";
@@ -272,9 +278,28 @@ def weighted_len(text: str) -> int:
     return total + _weigh(text[pos:])
 
 
-def build_post(text: str) -> dict:
+def urls_in(text: str) -> list[str]:
+    """Every URL X would link in ``text``: scheme URLs and bare domains alike,
+    as the weighted count sees them."""
+    text = unicodedata.normalize("NFC", text)
+    return [text[start:end] for start, end, _ in _url_spans(text)]
+
+
+def parse_post_ref(ref: str) -> str:
+    """The post ID in ``ref``: a bare ID, or an x.com / twitter.com status URL."""
+    ref = ref.strip()
+    if POST_ID_RE.match(ref):
+        return ref
+    match = STATUS_URL_RE.match(ref)
+    if match:
+        return match.group(1)
+    raise ValueError(f"{ref!r} is not an X post ID or status URL")
+
+
+def build_post(text: str, reply_to: str | None = None) -> dict:
     """The ``POST /2/tweets`` body. Refuses empty and over-length text here,
-    before any network call — X would refuse it too, after billing the try."""
+    before any network call — X would refuse it too, after billing the try.
+    ``reply_to`` is the ID of the post this one answers."""
     text = unicodedata.normalize("NFC", text.strip())
     if not text:
         raise ValueError("post text is empty")
@@ -283,7 +308,10 @@ def build_post(text: str) -> dict:
         raise ValueError(
             f"post is {count} weighted characters; X allows {MAX_WEIGHTED} (every URL counts as {URL_WEIGHT})"
         )
-    return {"text": text}
+    body = {"text": text}
+    if reply_to:
+        body["reply"] = {"in_reply_to_tweet_id": parse_post_ref(reply_to)}
+    return body
 
 
 # --- OAuth 1.0a ----------------------------------------------------------
@@ -321,17 +349,72 @@ def authorization_header(
     query: dict[str, str] | None = None,
     nonce: str | None = None,
     timestamp: int | None = None,
+    extra: dict[str, str] | None = None,
 ) -> str:
+    """The ``Authorization`` header. ``query`` holds the request's query and
+    form parameters, which are signed but not carried here; ``extra`` holds
+    further ``oauth_*`` parameters that are (``oauth_callback`` on a request
+    token, ``oauth_verifier`` on an access token). With no ``token`` — the
+    request-token leg — ``oauth_token`` is left out, as the spec has it."""
     oauth = {
         "oauth_consumer_key": consumer_key,
         "oauth_nonce": nonce or _secrets.token_hex(16),
         "oauth_signature_method": "HMAC-SHA1",
         "oauth_timestamp": str(int(time.time()) if timestamp is None else timestamp),
-        "oauth_token": token,
         "oauth_version": "1.0",
+        **(extra or {}),
     }
+    if token:
+        oauth["oauth_token"] = token
     oauth["oauth_signature"] = sign(method, url, {**(query or {}), **oauth}, consumer_secret, token_secret)
     return "OAuth " + ", ".join(f'{k}="{percent_encode(v)}"' for k, v in sorted(oauth.items()))
+
+
+# --- the PIN flow: user tokens for another account under the same app -------
+
+
+def _oauth_leg(transport, what: str, path: str, header: str, form: dict[str, str] | None) -> dict[str, str]:
+    headers = {"Authorization": header}
+    payload = None
+    if form:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        payload = urllib.parse.urlencode(form).encode()
+    resp = transport("POST", f"{API}{path}", headers, payload)
+    if not resp.ok:
+        raise ApiError(what, resp)
+    fields = {k: v[0] for k, v in urllib.parse.parse_qs(resp.body.decode("utf-8", "replace")).items()}
+    if "oauth_token" not in fields or "oauth_token_secret" not in fields:
+        raise ApiError(what + " (no token in the response)", resp)
+    return fields
+
+
+def request_token(transport, consumer_key: str, consumer_secret: str) -> dict[str, str]:
+    """``POST oauth/request_token`` with ``oauth_callback=oob``: the temporary
+    token the user authorises, and its secret. Needs the app's keys alone."""
+    url = f"{API}/oauth/request_token"
+    header = authorization_header("POST", url, consumer_key, consumer_secret, "", "", extra={"oauth_callback": "oob"})
+    fields = _oauth_leg(transport, "X request token failed", "/oauth/request_token", header, None)
+    if fields.get("oauth_callback_confirmed", "true").lower() != "true":
+        raise ValueError("X did not confirm the out-of-band callback; check the app's OAuth 1.0a settings")
+    return fields
+
+
+def authorize_url(oauth_token: str) -> str:
+    """Where the account holder, signed in as the account, approves the app
+    and is shown the PIN."""
+    return f"{API}/oauth/authorize?oauth_token={percent_encode(oauth_token)}"
+
+
+def access_token(
+    transport, consumer_key: str, consumer_secret: str, oauth_token: str, oauth_token_secret: str, pin: str
+) -> dict[str, str]:
+    """``POST oauth/access_token``: the PIN (``oauth_verifier``) for the user's
+    token and secret, plus ``user_id`` and ``screen_name`` — the account they
+    belong to, which the caller checks against the one it expected."""
+    url = f"{API}/oauth/access_token"
+    form = {"oauth_verifier": pin.strip()}
+    header = authorization_header("POST", url, consumer_key, consumer_secret, oauth_token, oauth_token_secret, query=form)
+    return _oauth_leg(transport, "X access token failed", "/oauth/access_token", header, form)
 
 
 class X:
@@ -369,6 +452,11 @@ class X:
         return {"method": "POST", "url": f"{API}/2/tweets", "body": body}
 
     def post(self, body: dict) -> dict:
-        data = self._request("X post failed", "POST", "/2/tweets", body).json().get("data", {})
+        """One ``POST /2/tweets``; a reply when ``body`` carries ``reply``."""
+        what = "X reply failed" if body.get("reply") else "X post failed"
+        data = self._request(what, "POST", "/2/tweets", body).json().get("data", {})
         post_id = data.get("id", "")
-        return {"id": post_id, "url": f"https://x.com/{self.handle}/status/{post_id}" if post_id else ""}
+        return {"id": post_id, "url": self.status_url(post_id) if post_id else ""}
+
+    def status_url(self, post_id: str) -> str:
+        return f"https://x.com/{self.handle}/status/{post_id}"

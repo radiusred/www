@@ -460,3 +460,101 @@ def test_twitter_text_conformance_fixtures(text, expected):
     # https://github.com/twitter/twitter-text/blob/master/conformance/validate.yml,
     # WeightedTweetsWithDiscountedEmojiCounterTest (the v3 config).
     assert x.weighted_len(text) == expected
+
+
+# --- the PIN flow: a second account's tokens under the same app (www#91, M10-R1) ---
+
+
+def _oauth_fields(header):
+    return dict((k, v.strip('"')) for k, v in (part.split("=", 1) for part in header[6:].split(", ")))
+
+
+def test_request_token_signs_with_the_consumer_secret_alone_and_asks_for_oob(transport):
+    transport.expect("POST", "/oauth/request_token", body=b"oauth_token=reqtok&oauth_token_secret=reqsec&oauth_callback_confirmed=true")
+    fields = x.request_token(transport, "xkey", "xsecret")
+    assert fields["oauth_token"] == "reqtok" and fields["oauth_token_secret"] == "reqsec"
+    call = transport.calls[0]
+    assert call["url"] == "https://api.x.com/oauth/request_token" and call["body"] is None
+    oauth = _oauth_fields(call["headers"]["Authorization"])
+    assert oauth["oauth_callback"] == "oob" and "oauth_token" not in oauth
+    signature = oauth.pop("oauth_signature")
+    assert x.percent_encode(x.sign("POST", call["url"], oauth, "xsecret", "")) == signature
+
+
+def test_request_token_without_callback_confirmation_is_refused(transport):
+    transport.expect("POST", "/oauth/request_token", body=b"oauth_token=t&oauth_token_secret=s&oauth_callback_confirmed=false")
+    with pytest.raises(ValueError, match="did not confirm the out-of-band callback"):
+        x.request_token(transport, "xkey", "xsecret")
+
+
+def test_request_token_failure_is_an_api_error_without_a_token_in_it(transport):
+    transport.expect("POST", "/oauth/request_token", status=401, body=b'{"errors":[{"code":32,"message":"Could not authenticate you."}]}')
+    with pytest.raises(ApiError, match="X request token failed: HTTP 401 .*Could not authenticate"):
+        x.request_token(transport, "xkey", "xsecret")
+
+
+def test_authorize_url_carries_the_request_token():
+    assert x.authorize_url("req tok") == "https://api.x.com/oauth/authorize?oauth_token=req%20tok"
+
+
+def test_access_token_sends_the_pin_as_a_signed_form_field_under_the_request_token(transport):
+    transport.expect("POST", "/oauth/access_token", body=b"oauth_token=usertok&oauth_token_secret=usersec&user_id=99&screen_name=crewworks")
+    fields = x.access_token(transport, "xkey", "xsecret", "reqtok", "reqsec", " 1234567 \n")
+    assert fields == {"oauth_token": "usertok", "oauth_token_secret": "usersec", "user_id": "99", "screen_name": "crewworks"}
+    call = transport.calls[0]
+    assert call["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
+    assert call["body"] == b"oauth_verifier=1234567"
+    oauth = _oauth_fields(call["headers"]["Authorization"])
+    assert oauth["oauth_token"] == "reqtok" and "oauth_verifier" not in oauth
+    signature = oauth.pop("oauth_signature")
+    assert x.percent_encode(x.sign("POST", call["url"], {**oauth, "oauth_verifier": "1234567"}, "xsecret", "reqsec")) == signature
+
+
+def test_access_token_response_without_a_token_is_an_api_error(transport):
+    transport.expect("POST", "/oauth/access_token", body=b"something=else")
+    with pytest.raises(ApiError, match="X access token failed \\(no token in the response\\)"):
+        x.access_token(transport, "xkey", "xsecret", "reqtok", "reqsec", "1")
+
+
+# --- replies (www#91, M10-R2) -------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "ref, expected",
+    [
+        ("1970", "1970"),
+        (" 1970\n", "1970"),
+        ("https://x.com/example_uk/status/1970", "1970"),
+        ("https://x.com/example_uk/status/1970?s=20&t=abc", "1970"),
+        ("https://twitter.com/example_uk/status/1970/photo/1", "1970"),
+        ("https://mobile.x.com/i/web/status/1970", "1970"),
+    ],
+)
+def test_parse_post_ref_accepts_ids_and_status_urls(ref, expected):
+    assert x.parse_post_ref(ref) == expected
+
+
+@pytest.mark.parametrize("ref", ["", "abc", "https://x.com/example_uk", "https://bsky.app/profile/a/post/b", "at://did:plc:a/app.bsky.feed.post/b"])
+def test_parse_post_ref_refuses_other_strings(ref):
+    with pytest.raises(ValueError, match="is not an X post ID or status URL"):
+        x.parse_post_ref(ref)
+
+
+def test_build_post_as_a_reply_carries_the_parent_id():
+    assert x.build_post("thanks", reply_to="https://x.com/a/status/42") == {"text": "thanks", "reply": {"in_reply_to_tweet_id": "42"}}
+    assert x.build_post("thanks") == {"text": "thanks"}
+
+
+def test_a_reply_is_posted_through_the_same_endpoint_and_named_as_a_reply_on_failure(transport):
+    transport.expect("POST", "/2/tweets", status=201, body={"data": {"id": "43", "text": "thanks"}})
+    assert _client(transport).post(x.build_post("thanks", reply_to="42")) == {"id": "43", "url": "https://x.com/example_uk/status/43"}
+    assert json.loads(transport.calls[0]["body"]) == {"text": "thanks", "reply": {"in_reply_to_tweet_id": "42"}}
+    transport.expect("POST", "/2/tweets", status=403, body={"title": "Forbidden", "detail": "no"})
+    with pytest.raises(ApiError, match="X reply failed: HTTP 403"):
+        _client(transport).post(x.build_post("thanks", reply_to="42"))
+
+
+def test_urls_in_finds_scheme_urls_and_bare_domains_but_not_versions():
+    assert x.urls_in("Shipped https://codecrew.works/blog/, see radiusred.uk.") == ["https://codecrew.works/blog/", "radiusred.uk"]
+    assert x.urls_in("v2.1.0 shipped, e.g. the gates") == []
+    assert x.urls_in("") == []
