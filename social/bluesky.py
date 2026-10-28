@@ -1,10 +1,12 @@
-"""Bluesky: app-password session, then one ``app.bsky.feed.post`` record."""
+"""Bluesky: app-password session, then one ``app.bsky.feed.post`` record —
+a top-level post, or a reply with ``root`` and ``parent`` strong refs."""
 
 from __future__ import annotations
 
 import json
 import re
 import unicodedata
+import urllib.parse
 from datetime import datetime, timezone
 
 from .transport import ApiError, Response
@@ -18,6 +20,10 @@ MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
 # (so a URL fragment or "a#b" is not a tag) and not purely numeric.
 TAG_RE = re.compile(r"(?<!\w)#(\w+)")
 TRAILING_PUNCT = ".,;:!?'\")"
+POST_COLLECTION = "app.bsky.feed.post"
+# at://<did>/app.bsky.feed.post/<rkey>, or the web client's URL for the same post.
+AT_URI_RE = re.compile(r"^at://(?P<repo>[^/]+)/app\.bsky\.feed\.post/(?P<rkey>[^/?#]+)$")
+POST_URL_RE = re.compile(r"^https?://(?:www\.)?bsky\.app/profile/(?P<repo>[^/]+)/post/(?P<rkey>[^/?#]+)(?:[/?#].*)?$")
 
 
 def grapheme_len(text: str) -> int:
@@ -80,12 +86,27 @@ def facets(text: str) -> tuple[str, list[dict]]:
     return text, sorted(found, key=lambda f: f["index"]["byteStart"])
 
 
+def parse_post_ref(ref: str) -> tuple[str, str]:
+    """``(repo, rkey)`` from an ``at://`` post URI or a ``bsky.app`` post URL.
+    The repo is a DID in the URI, a handle or a DID in the URL."""
+    ref = ref.strip()
+    match = AT_URI_RE.match(ref) or POST_URL_RE.match(ref)
+    if not match:
+        raise ValueError(f"{ref!r} is not a Bluesky post at:// URI or bsky.app post URL")
+    return match.group("repo"), match.group("rkey")
+
+
+def post_uri(did: str, rkey: str) -> str:
+    return f"at://{did}/{POST_COLLECTION}/{rkey}"
+
+
 def build_post(
     text: str,
     link: str | None = None,
     title: str | None = None,
     description: str | None = None,
     created_at: datetime | None = None,
+    reply: dict | None = None,
 ) -> dict:
     text, found = facets(text.strip())
     if not text:
@@ -106,6 +127,8 @@ def build_post(
             "$type": "app.bsky.embed.external",
             "external": {"uri": link, "title": title or link, "description": description or ""},
         }
+    if reply:
+        record["reply"] = reply
     return record
 
 
@@ -122,6 +145,40 @@ class Bluesky:
         if token:
             headers["Authorization"] = f"Bearer {token}"
         return self.transport("POST", f"{self.pds}/xrpc/{method}", headers, json.dumps(body).encode())
+
+    def _query(self, what: str, method: str, params: dict[str, str], token: str | None = None) -> dict:
+        """A GET on the PDS; with the session token it proxies ``app.bsky.*``
+        reads to the appview, so any post on the network can be looked up."""
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        resp = self.transport("GET", f"{self.pds}/xrpc/{method}?{urllib.parse.urlencode(params)}", headers, None)
+        if not resp.ok:
+            raise ApiError(what, resp)
+        return resp.json()
+
+    def resolve_handle(self, handle: str) -> str:
+        if handle.startswith("did:"):
+            return handle
+        return self._query("Bluesky handle lookup failed", "com.atproto.identity.resolveHandle", {"handle": handle})["did"]
+
+    def get_post(self, uri: str) -> dict:
+        """The post at ``uri`` as the appview has it: ``uri``, ``cid`` and its
+        ``record``. Needs a session."""
+        session = self.session or self.login()
+        posts = self._query("Bluesky post lookup failed", "app.bsky.feed.getPosts", {"uris": uri}, session["accessJwt"]).get("posts") or []
+        if not posts:
+            raise ValueError(f"no post at {uri}")
+        return posts[0]
+
+    def reply_refs(self, ref: str) -> dict:
+        """``{"root", "parent"}`` strong refs for a reply to the post ``ref``
+        names: the parent is that post; the root is the thread it is in —
+        the parent's own root when it is itself a reply, else the parent."""
+        repo, rkey = parse_post_ref(ref)
+        uri = post_uri(self.resolve_handle(repo), rkey)
+        post = self.get_post(uri)
+        parent = {"uri": post["uri"], "cid": post["cid"]}
+        root = (post.get("record") or {}).get("reply", {}).get("root") or parent
+        return {"root": {"uri": root["uri"], "cid": root["cid"]}, "parent": parent}
 
     def login(self) -> dict:
         resp = self._xrpc(
