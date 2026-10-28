@@ -1,7 +1,0 @@
-Who reviews your coding agent's pull requests?
-
-If it's the same model, it will likely miss the same things. Use a different one without the same blind spots.
-
-[CodeCrew](https://codecrew.works/) sets that up on GitHub. [Here's how](https://codecrew.works/why/second-model-review/)
-
-#AI #OpenSource #AIAgents #CodeReview #Programming
