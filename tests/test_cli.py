@@ -254,11 +254,11 @@ def test_env_file_help_names_the_new_default():
 
 
 def test_x_dry_run_prints_the_request_and_touches_no_network(env_file, refusing_transport, capsys):
-    rc = cli.main(["--env-file", str(env_file), "post", "--to", "x", "--text", "Shipped: https://www.radiusred.uk/blog/", "--dry-run"], transport=refusing_transport, environ={})
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "x", "--text", "Shipped 1.0 today.", "--dry-run"], transport=refusing_transport, environ={})
     assert rc == 0
     out, err = capsys.readouterr()
     doc = json.loads(out)
-    assert doc == {"network": "x", "dry_run": True, "request": {"method": "POST", "url": "https://api.x.com/2/tweets", "body": {"text": "Shipped: https://www.radiusred.uk/blog/"}}}
+    assert doc == {"network": "x", "dry_run": True, "request": {"method": "POST", "url": "https://api.x.com/2/tweets", "body": {"text": "Shipped 1.0 today."}}}
     assert "Authorization" not in out and "xsecret" not in out and err == ""
 
 
@@ -295,7 +295,8 @@ def test_to_has_no_implicit_all(env_file, refusing_transport, capsys):
 
 def test_x_over_length_text_is_refused_before_any_network_call(env_file, refusing_transport, capsys):
     text = "a" * 258 + " https://www.radiusred.uk/blog/"
-    rc = cli.main(["--env-file", str(env_file), "post", "--to", "bluesky", "--to", "x", "--text", text], transport=refusing_transport, environ={})
+    # --skip-lint: the URL in the body is the point here, and lint would refuse it first
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "bluesky", "--to", "x", "--text", text, "--skip-lint"], transport=refusing_transport, environ={})
     assert rc == 2
     assert "error: post is 282 weighted characters; X allows 280 (every URL counts as 23)" in capsys.readouterr().err
 
@@ -303,11 +304,11 @@ def test_x_over_length_text_is_refused_before_any_network_call(env_file, refusin
 def test_x_text_override_and_link_note(env_file, refusing_transport, tmp_path, capsys):
     short = tmp_path / "x.txt"
     short.write_text("for x https://www.radiusred.uk/\n")
-    rc = cli.main(["--env-file", str(env_file), "post", "--to", "linkedin", "--to", "x", "--text", "long form", "--x-text-file", str(short), "--link", "https://www.radiusred.uk/", "--dry-run"], transport=refusing_transport, environ={})
+    rc = cli.main(["--env-file", str(env_file), "post", "--to", "linkedin", "--to", "x", "--text", "long form", "--x-text-file", str(short), "--link", "https://www.radiusred.uk/", "--dry-run", "--skip-lint"], transport=refusing_transport, environ={})
     assert rc == 0
     out, err = capsys.readouterr()
     assert '"text": "for x https://www.radiusred.uk/"' in out and '"commentary": "long form"' in out
-    assert "x: --link/--title/--description are not applied on X" in err
+    assert "x: --link/--title/--description are not applied on X; the link goes in the reply" in err
 
 
 def _check_bluesky_and_linkedin(transport):
