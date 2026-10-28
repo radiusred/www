@@ -1,9 +1,18 @@
 """Credential resolution: environment first, then the operator's env file.
 
-The env file is ``~/.config/radiusred/social.env`` by default — the posting
-accounts are Radius Red's, not CodeCrew's — and is written back to when a
-token rotates and that is where it came from. Values that arrive through the
-environment (an orchestrator's doing) are never written anywhere.
+The env file is ``~/.config/radiusred/social.env`` by default and is written
+back to when a token rotates and that is where it came from. Values that
+arrive through the environment (an orchestrator's doing) are never written
+anywhere.
+
+Two accounts share the file (www#91). Radius Red's keys are the bare names;
+CodeCrew's are the same names with a ``CODECREW_`` prefix, for the keys that
+are an account's own: the Bluesky handle and app password (and PDS), the X
+handle and user tokens. The X consumer key and secret belong to the X app,
+which both accounts post through, so they stay unprefixed; LinkedIn is Radius
+Red's alone and has no CodeCrew keys at all. ``Credentials.scoped(account)``
+does the translation, so a caller asks for ``X_ACCESS_TOKEN`` and gets the
+account's.
 
 Transitional (www#70): when the default file is absent, the old
 ``~/.config/codecrew/social.env`` is still read, with one stderr line telling
@@ -15,11 +24,24 @@ from __future__ import annotations
 
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 DEFAULT_ENV_FILE = Path.home() / ".config" / "radiusred" / "social.env"
 LEGACY_ENV_FILE = Path.home() / ".config" / "codecrew" / "social.env"
+
+DEFAULT_ACCOUNT = "radiusred"
+# account -> the prefix its own keys carry
+ACCOUNTS = {"radiusred": "", "codecrew": "CODECREW_"}
+# The keys that differ per account. Everything else is shared or Radius Red's.
+PER_ACCOUNT_KEYS = (
+    "BSKY_HANDLE",
+    "BSKY_APP_PASSWORD",
+    "BSKY_PDS",
+    "X_HANDLE",
+    "X_ACCESS_TOKEN",
+    "X_ACCESS_TOKEN_SECRET",
+)
 
 KEYS = (
     "BSKY_HANDLE",
@@ -34,12 +56,15 @@ KEYS = (
     "LINKEDIN_ORG_URN",
     "LINKEDIN_VERSION",
     "LINKEDIN_REDIRECT_URI",
-    # OAuth 1.0a user context for @radiusred_uk: nothing here expires or rotates.
+    # OAuth 1.0a user context: nothing here expires or rotates. X_API_KEY and
+    # X_API_SECRET are the app's (shared); the rest are the account's.
     "X_HANDLE",
     "X_API_KEY",
     "X_API_SECRET",
     "X_ACCESS_TOKEN",
     "X_ACCESS_TOKEN_SECRET",
+) + tuple(
+    prefix + key for account, prefix in ACCOUNTS.items() if prefix for key in PER_ACCOUNT_KEYS
 )
 
 
@@ -74,21 +99,38 @@ class Credentials:
     # The legacy file the values were read from, when ``env_file`` does not
     # exist yet: the first write copies it whole so nothing is left behind.
     seed_from: Path | None = None
+    # The account whose keys ``get``/``require``/``persist`` address.
+    account: str = DEFAULT_ACCOUNT
+
+    def scoped(self, account: str) -> "Credentials":
+        """The same values, read and written as ``account``: a view, not a
+        copy — a write through either is seen by both."""
+        if account not in ACCOUNTS:
+            raise ValueError(f"unknown account {account!r}; one of {', '.join(ACCOUNTS)}")
+        return replace(self, account=account)
+
+    def key(self, name: str) -> str:
+        """The env-file key behind ``name`` for this account: prefixed when
+        the key is an account's own, the bare name otherwise."""
+        prefix = ACCOUNTS[self.account]
+        return prefix + name if name in PER_ACCOUNT_KEYS else name
 
     def get(self, key: str, default: str | None = None) -> str | None:
-        value = self.values.get(key)
+        value = self.values.get(self.key(key))
         return value if value else default
 
     def require(self, key: str) -> str:
         value = self.get(key)
         if value is None:
-            raise MissingCredential(key, self.env_file)
+            raise MissingCredential(self.key(key), self.env_file)
         return value
 
     def persist(self, updates: dict[str, str]) -> list[str]:
-        """Write ``updates`` back to the env file. Returns the keys that could
-        not be persisted: those that came from the environment, or all of them
-        when there is no env file to write to."""
+        """Write ``updates`` (keyed by bare name, translated for the account)
+        back to the env file. Returns the keys that could not be persisted:
+        those that came from the environment, or all of them when there is no
+        env file to write to."""
+        updates = {self.key(k): v for k, v in updates.items()}
         self.values.update(updates)
         skipped = [k for k in updates if k in self.from_env]
         writable = {k: v for k, v in updates.items() if k not in self.from_env}
