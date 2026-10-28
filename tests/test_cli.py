@@ -308,7 +308,7 @@ def test_x_text_override_and_link_note(env_file, refusing_transport, tmp_path, c
     assert rc == 0
     out, err = capsys.readouterr()
     assert '"text": "for x https://www.radiusred.uk/"' in out and '"commentary": "long form"' in out
-    assert "x: --link/--title/--description are not applied on X; the link goes in the reply" in err
+    assert "x: --link/--title/--description are not applied on X; links go in the reply" in err
 
 
 def _check_bluesky_and_linkedin(transport):
@@ -662,7 +662,13 @@ def test_x_reply_file_dry_run_shows_both_requests(env_file, refusing_transport, 
 
 def test_x_reply_file_refuses_a_url_in_the_body_before_any_network_call(env_file, refusing_transport, links_file, capsys):
     for body in ("Shipped: https://codecrew.works/", "Shipped, see codecrew.works"):
+        # lint refuses the body first (#92); the transport's own guard is the backstop when lint is skipped
         rc = cli.main(["--env-file", str(env_file), "post", "--to", "x", "--text", body, "--x-reply-file", str(links_file)], transport=refusing_transport, environ={})
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "error: the x text fails lint" in err and "x: a URL in the body; on x it goes in the reply: " in err
+        assert "x reply" not in err  # the reply carries the link; lint does not fail it for that
+        rc = cli.main(["--env-file", str(env_file), "post", "--to", "x", "--text", body, "--x-reply-file", str(links_file), "--skip-lint"], transport=refusing_transport, environ={})
         assert rc == 2
         err = capsys.readouterr().err
         assert "error: the X post body carries a URL (" in err and "codecrew.works" in err and "the links go in the reply" in err

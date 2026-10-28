@@ -139,10 +139,10 @@ def test_a_url_in_a_bluesky_or_linkedin_body_passes_lint():
 def test_a_url_in_an_x_reply_passes_the_url_rule_but_nothing_else():
     assert lint.lint("https://codecrew.works/why/gates-in-code/", "x", reply=True) == []
     assert rules("Here\u2019s the thing: https://codecrew.works/", "x") == [
-        "banned word 'here\'s the thing'", "a URL in the body; on x it goes in the reply",
+        'banned word "here\'s the thing"', "a URL in the body; on x it goes in the reply",
     ]
     assert [f.rule for f in lint.lint("Here\u2019s the thing: https://codecrew.works/", "x", reply=True)] == [
-        "banned word 'here\'s the thing'",
+        'banned word "here\'s the thing"',
     ]
 
 
