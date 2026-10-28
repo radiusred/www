@@ -17,7 +17,18 @@ tree. The commands are in the main README, "Posting to social accounts".
   (`--account radiusred`). Radius Red's own news.
 - **CodeCrew**: Bluesky `codecrew.works`, X `codecrewworks`
   (`--account codecrew`). CodeCrew news goes out from these: releases,
-  milestone closes, merged work, the `why/` pages.
+  milestone closes, merged work, the `why/` pages, within the scope below.
+
+## What CodeCrew posts about
+
+CodeCrew's accounts post about gh-codecrew itself or how it is used: the
+CLI, the protocol, the role contracts, releases, and the docs a user follows.
+Never a change that only touches the codecrew.works website: styling, layout,
+accessibility fixes, the homepage. CodeCrew's users don't need to know that a
+tab stop was fixed or a colour changed (the operator's Decision on
+[radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6469436459)).
+A website change that ships alongside gh-codecrew work is not the post's
+subject; the gh-codecrew work is.
 
 ## The voice
 
@@ -49,8 +60,11 @@ factual and traceable to the record; plain does not mean loose.
    keeps the record." "lets small work stay small")
 4. List three things for rhythm. If there really are three things, list
    them.
-5. Use call-to-action labels. ("Here's how", "Read the report to find out
-   how", "What changed")
+5. Use call-to-action labels: `What changed`, `Here's how`, `Find out`,
+   `Read the … to find out`, `Learn more`, `Check it out`, `See how`, `Click`,
+   `Link in`. Lint refuses each of these where it opens a sentence, a line or
+   a Bluesky link label; the same words inside a sentence ("the reviewer
+   found what changed in the diff") are yours to judge.
 6. Use em dashes or colon reveals. ("puts that rule in code: the merge
    command ...")
 7. Make a point of being agent staffed in every post, or make a joke of it.
@@ -130,6 +144,16 @@ used to put that rule in the agent's instructions. It mostly followed them."
   milestone issue the post belongs to, when there is one. That comment is
   the only record.
 
+## Before you post
+
+Re-read every draft against the Don't list above, each network's text in
+turn, before running lint. Lint checks the mechanical rules below and nothing
+else: it cannot tell a fragment opener ("Keyboard fixes on the CodeCrew
+site.") from a sentence, nor see a set-up-and-knock-down line, a slogan
+antithesis or a rhythmic three. Those are the drafter's to catch, and a post
+that passes lint with one of them in it still breaks the guide, as the M24
+close post did. A draft you are not sure of goes to the operator.
+
 ## The check: `social lint`
 
 ```sh
@@ -147,6 +171,10 @@ refuses a failing text. The rules it checks:
 - a first sentence ending in a question mark;
 - any word or phrase from the list in Don't 8, case-insensitive, as a whole
   word, inflections included;
+- a call-to-action label from the list in Don't 5, case-insensitive, with
+  either apostrophe, where it opens a phrase: the start of the text or a
+  line, after a sentence end, a colon or a semicolon, after an opening quote
+  or bracket, or as the start of a Bluesky `[label](url)` label;
 - more hashtags than the network allows: X 0, Bluesky 2, LinkedIn 5;
 - a URL, or a bare domain X would autolink, in an X post's body (not in a
   reply: the reply is where the link goes);
@@ -154,20 +182,27 @@ refuses a failing text. The rules it checks:
 - "agent-staffed" with a hyphen, or "agent staffed" not followed by ", human
   moderated".
 
-The banned list and the limits live in `social/lint.py`; a test pins that
-this guide and the code agree. The rest of the voice is judgment, and the
-operator's review of this guide stands in for reviewing every low-risk post.
+The banned list, the label list and the limits live in `social/lint.py`; a
+test pins that this guide and the code agree. The rest of the voice is
+judgment (see "Before you post"), and the operator's review of this guide
+stands in for reviewing every low-risk post.
 
 ## Milestone-close posts
 
-Every CodeCrew milestone close comes with one Bluesky post and one X post,
-every close, the small milestones included, from the CodeCrew accounts, in
-the voice above (the operator's Decision on
-[radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6467856741)).
-A close post only announces something already public on GitHub, so it is
-low-risk: it needs no per-post approval when it passes `social lint`. The X
-link goes in the reply, so a close costs $0.215 on X. One comment with the
-post links goes on the milestone issue.
+A close post goes out only for a milestone about gh-codecrew itself or how
+it is used, per "What CodeCrew posts about": one Bluesky post and one X post
+from the CodeCrew accounts, in the voice above. A milestone that only changes
+the codecrew.works website gets no post, however small (the operator's
+Decision on
+[radiusred/gh-codecrew#423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6469436459),
+superseding the "every close" clause of the
+[earlier one](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6467856741),
+whose other rules stand: CodeCrew's own accounts, the voice, no per-post
+approval when lint passes, links commented on the milestone). A close post
+only announces something already public on GitHub, so it is low-risk: it
+needs no per-post approval when it passes `social lint`, after the re-read in
+"Before you post". The X link goes in the reply, so a close costs $0.215 on
+X. One comment with the post links goes on the milestone issue.
 
 ## Bluesky budget
 

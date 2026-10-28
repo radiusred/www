@@ -38,6 +38,10 @@ REPLACED_RULES = (
     "issuecomment-5846341962",
     "approval is the only check",
     "nothing goes out without it",
+    # The "every close" clause, superseded on 2026-10-28 by the scope Decision
+    # (gh-codecrew#423, issuecomment-6469436459): a website-only milestone gets
+    # no post (www#96).
+    "every close, the small milestones included",
 )
 
 
@@ -57,6 +61,13 @@ def _banned_words_in_the_guide(text):
     """The backticked items of the Don't list's 'Use these words' entry."""
     match = re.search(r"Use these words:(.*?)(?=\n\d+\.|\n\n)", text, re.S)
     assert match, "the guide has no 'Use these words' entry"
+    return re.findall(r"`([^`]+)`", match.group(1))
+
+
+def _cta_labels_in_the_guide(text):
+    """The backticked items of the Don't list's 'Use call-to-action labels' entry."""
+    match = re.search(r"Use call-to-action labels:(.*?)(?=\n\d+\.|\n\n)", text, re.S)
+    assert match, "the guide has no 'Use call-to-action labels' entry"
     return re.findall(r"`([^`]+)`", match.group(1))
 
 
@@ -85,6 +96,7 @@ def test_guide_keeps_its_sections():
     text = GUIDE.read_text()
     for heading in (
         "## Accounts",
+        "## What CodeCrew posts about",
         "## The voice",
         "### Do",
         "### Don't",
@@ -92,6 +104,7 @@ def test_guide_keeps_its_sections():
         "## Hashtags",
         "## Links",
         "## Approval",
+        "## Before you post",
         "## The check: `social lint`",
         "## Milestone-close posts",
         "## Bluesky budget",
@@ -125,6 +138,39 @@ def test_guide_has_no_em_dash_of_its_own():
 
 def test_guide_banned_list_matches_the_code():
     assert _banned_words_in_the_guide(GUIDE.read_text()) == list(lint.BANNED)
+
+
+def test_guide_call_to_action_labels_match_the_code():
+    labels = _cta_labels_in_the_guide(GUIDE.read_text())
+    assert [label.lower() for label in labels] == list(lint.CTA_LABELS)
+    assert "What changed" in labels and "Here's how" in labels, "the M24 tells are listed as written"
+
+
+def test_guide_lists_the_label_rule_among_the_checks():
+    text = _flat(GUIDE.read_text())
+    assert "a call-to-action label from the list in Don't 5" in text
+    assert "as the start of a Bluesky `[label](url)` label" in text
+
+
+def test_guide_limits_codecrew_posts_to_gh_codecrew():
+    text = _flat(GUIDE.read_text())
+    assert "post about gh-codecrew itself or how it is used" in text
+    for subject in ("the CLI", "the protocol", "the role contracts", "releases", "the docs a user follows"):
+        assert subject in text, f"{subject!r} is missing from the scope"
+    assert "Never a change that only touches the codecrew.works website" in text
+    assert "issuecomment-6469436459" in text, "the guide cites the scope Decision"
+    close = text.partition("## Milestone-close posts")[2].partition("## Bluesky budget")[0]
+    assert "only for a milestone about gh-codecrew" in close
+    assert "gets no post, however small" in close
+    assert "issuecomment-6469436459" in close, "the close section cites the Decision that narrowed it"
+
+
+def test_guide_asks_the_drafter_to_re_read_before_lint():
+    text = _flat(GUIDE.read_text())
+    step = text.partition("## Before you post")[2].partition("## The check")[0]
+    assert "Re-read every draft against the Don't list" in step
+    for tell in ("fragment opener", "set-up-and-knock-down", "slogan", "rhythmic three"):
+        assert tell in step, f"the step does not say lint cannot judge a {tell}"
 
 
 def test_guide_hashtag_limits_match_the_code():
@@ -168,3 +214,10 @@ def test_readme_lists_lint():
     section = _social_section(README.read_text())
     assert "uv run -m social lint" in section
     assert "--skip-lint" in section
+    assert "a call-to-action label opening a sentence" in _flat(section)
+
+
+def test_readme_says_auth_needs_a_terminal():
+    section = _flat(_social_section(README.read_text()))
+    assert "when stdin is not a terminal" in section and "before requesting any token" in section
+    assert "`--paste` reads the code from the terminal" in section

@@ -218,7 +218,8 @@ uv run -m social comment --urn urn:li:share:123 \
   URL).
 - `lint --to <network>` (`--text` or `--text-file`) checks a text against the
   guide's mechanical rules — an em dash, a first sentence that is a question,
-  the banned words, the network's hashtag limit, a URL in an X body, emoji,
+  the banned words, a call-to-action label opening a sentence, a line or a
+  Bluesky link label, the network's hashtag limit, a URL in an X body, emoji,
   and the "agent staffed, human moderated" form — printing each failure with
   the rule and the fragment, exit 1 on any; `--reply` marks a reply, which
   may carry the link. `post` runs it on every text before any network call,
@@ -243,11 +244,14 @@ uv run -m social comment --urn urn:li:share:123 \
   them under the account's names. No token or secret is ever printed. Needs
   `X_API_KEY`/`X_API_SECRET` and, on the app's *User authentication settings*,
   OAuth 1.0a enabled with Read and write; the callback can be anything since
-  the flow uses the PIN.
+  the flow uses the PIN. It reads the PIN from the terminal, so run it from a
+  shell: when stdin is not a terminal (an agent's non-interactive command,
+  say) it exits 1 with one line saying so, before requesting any token.
 - `auth linkedin` is the re-consent playbook: it prints the consent URL,
   catches the redirect on `localhost:8765` (or `--paste` the code), exchanges
   it, and stores the tokens. Someone signed in to LinkedIn as a Page admin
-  has to click through; no agent can.
+  has to click through; no agent can. `--paste` reads the code from the
+  terminal and, like `auth x`, exits 1 with one line when stdin is not one.
 
 Rotation calendar: LinkedIn access tokens last 60 days and refresh
 themselves; the refresh token lasts a year from the last consent, after which
