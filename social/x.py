@@ -225,6 +225,21 @@ def _sequence_end(text: str, i: int) -> int:
     return _absorb(text, i + 1)
 
 
+def emoji_spans(text: str) -> list[tuple[int, int]]:
+    """(start, end) of every emoji sequence in ``text``, the same sequences
+    the weighted count charges 2 for: a keycap, ``©``/``®`` with VS16, a
+    flag pair, or an emoji with its modifiers and ZWJ continuations."""
+    spans, i = [], 0
+    while i < len(text):
+        end = _sequence_end(text, i)
+        if end > i:
+            spans.append((i, end))
+            i = end
+        else:
+            i += 1
+    return spans
+
+
 def _weigh(text: str) -> int:
     total, i = 0, 0
     while i < len(text):

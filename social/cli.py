@@ -1,4 +1,4 @@
-"""``python -m social`` — check credentials, post or reply, mint tokens.
+"""``python -m social`` — check credentials, lint a text, post or reply, mint tokens.
 
 ``--account radiusred`` (the default) or ``--account codecrew`` picks whose
 credentials every verb uses; LinkedIn is Radius Red's alone.
@@ -15,7 +15,7 @@ import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import bluesky, linkedin, x
+from . import bluesky, linkedin, lint as lintmod, x
 from .config import ACCOUNTS, DEFAULT_ACCOUNT, Credentials, MissingCredential, load_credentials
 from .transport import ApiError, UrllibTransport
 
@@ -206,10 +206,12 @@ def _check_x(creds: Credentials, transport, failures: int) -> int:
 
 def _read_text(args, network: str) -> str:
     override = getattr(args, f"{network}_text_file", None)
-    if override:
-        return Path(override).read_text()
-    if args.text_file:
-        return Path(args.text_file).read_text()
+    path = override or args.text_file
+    if path:
+        try:
+            return Path(path).read_text()
+        except OSError as err:
+            raise SystemExit(f"error: cannot read the {network} text: {err}") from None
     if args.text:
         return args.text
     raise SystemExit("error: give --text, --text-file, or a per-network --<network>-text-file")
@@ -236,6 +238,45 @@ def _x_reply_text(args) -> str | None:
     return Path(args.x_reply_file).read_text()
 
 
+def _print_lint(network: str, failures: list[lintmod.Failure]) -> None:
+    for failure in failures:
+        print(f"{network}: {failure}")
+
+
+def cmd_lint(args, creds: Credentials, transport) -> int:
+    """The guide's mechanical rules against one text for one network: each
+    failure on its own line with the rule and the fragment; exit 1 on any."""
+    failures = lintmod.lint(_read_text(args, args.to), args.to, reply=args.reply)
+    if failures:
+        _print_lint(args.to, failures)
+        return 1
+    print(f"{args.to}: lint ok")
+    return 0
+
+
+def check_texts(args, targets: list[str], x_reply_text: str | None = None) -> bool:
+    """Lint every text before any network call: each target's post, and the
+    X link reply. A reply is linted as one — it carries the link, so the
+    URL-in-body rule does not apply to it. False, with the failures on
+    stderr, when a text fails; ``--skip-lint`` passes everything through
+    with one line saying so."""
+    if args.skip_lint:
+        _say("lint skipped (--skip-lint): sending the text as approved")
+        return True
+    texts = [(network, _read_text(args, network), bool(args.reply_to)) for network in targets]
+    if x_reply_text is not None:
+        texts.append(("x reply", x_reply_text, True))
+    clean = True
+    for label, text, reply in texts:
+        failures = lintmod.lint(text, label.split()[0], reply=reply)
+        if failures:
+            clean = False
+            _say(f"error: the {label} text fails lint (announcements/README.md); --skip-lint sends an approved text")
+            for failure in failures:
+                _say(f"{label}: {failure}")
+    return clean
+
+
 def cmd_post(args, creds: Credentials, transport) -> int:
     targets = list(dict.fromkeys(args.to))
     if not targets:
@@ -248,6 +289,8 @@ def cmd_post(args, creds: Credentials, transport) -> int:
         else:
             bluesky.parse_post_ref(args.reply_to)
     x_reply_text = _x_reply_text(args)
+    if not check_texts(args, targets, x_reply_text):
+        return 1
 
     requests: dict[str, list[dict]] = {}
     clients: dict[str, object] = {}
@@ -271,7 +314,8 @@ def cmd_post(args, creds: Credentials, transport) -> int:
             client = linkedin_client(creds, transport)
             clients["linkedin"] = (client, body)
     if "x" in targets:
-        # No card on X: --link and friends are not applied (radiusred/ops#28 Decision).
+        # No card on X, and no URL in the body: the link goes in the reply
+        # (announcements/README.md, "Links"); lint has already refused a body with one.
         if args.link or args.title or args.description:
             _say("x: --link/--title/--description are not applied on X; links go in the reply (--x-reply-file)")
         text = _read_text(args, "x")
@@ -491,6 +535,13 @@ def build_parser() -> argparse.ArgumentParser:
     post.add_argument("--reply-to", help="publish as a reply: an X post ID or status URL, or a Bluesky at:// URI or bsky.app post URL (one --to)")
     post.add_argument("--x-reply-file", help="X only: post this file's text as a reply to the post, in one go (the body must then carry no URL)")
     post.add_argument("--dry-run", action="store_true", help="print the requests; send nothing")
+    post.add_argument("--skip-lint", action="store_true", help="send a text the operator approved even though lint fails it")
+
+    lint = sub.add_parser("lint", help="check a text against the guide's mechanical rules (announcements/README.md)")
+    lint.add_argument("--to", choices=NETWORKS, required=True, help="the network the text is for")
+    lint.add_argument("--text")
+    lint.add_argument("--text-file")
+    lint.add_argument("--reply", action="store_true", help="the text is a reply, which may carry the link")
 
     comment = sub.add_parser("comment", help="comment on a LinkedIn share (the first-comment link slot)")
     comment.add_argument("--urn", required=True, help="the share URN the post printed, e.g. urn:li:share:123")
@@ -517,6 +568,8 @@ def main(argv: list[str] | None = None, transport=None, environ: dict[str, str] 
             return cmd_check(args, creds, transport)
         if args.command == "post":
             return cmd_post(args, creds, transport)
+        if args.command == "lint":
+            return cmd_lint(args, creds, transport)
         if args.command == "comment":
             return cmd_comment(args, creds, transport)
         if args.command == "auth" and args.network == "x":
