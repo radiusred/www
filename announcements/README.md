@@ -97,9 +97,12 @@ used to put that rule in the agent's instructions. It mostly followed them."
   [pricing verified 2026-09-26](https://docs.x.com/x-api/getting-started/pricing):
   the plain post is $0.015 and the reply with its URL $0.200, $0.215 against
   $0.200 for one post with the URL inline. The difference buys reach: a post
-  with a URL in its body is shown to fewer people. The `post` command's X
-  reply option sends the post and the reply in one invocation and prints
-  both URLs.
+  with a URL in its body is shown to fewer people. One invocation sends
+  both: `post --to x --x-text-file <body>.txt --x-reply-file <links>.txt`
+  posts the body, then the file's text as a reply to it, and prints both
+  URLs. If the body posts and the reply fails, the tool prints the exact
+  `post --to x --reply-to <id> --text-file <links>.txt` to retry the reply
+  alone. The commands are in the main README, "Posting to social accounts".
 - **LinkedIn: no inline URLs in the post.** The algorithm penalises them
   heavily even though LinkedIn wraps them in its own shortener. The body says
   *"Links in the first comment"*, the post carries no `--link` card, and the
@@ -131,19 +134,23 @@ used to put that rule in the agent's instructions. It mostly followed them."
 
 ```sh
 uv run -m social lint --to x --text-file x.txt          # or --to bluesky, --to linkedin; or --text
+uv run -m social lint --to x --text-file links.txt --reply   # a reply may carry the link
 ```
 
 It prints each failure with the rule and the offending fragment and exits 1
-on any failure, 0 when the text is clean. `post` runs it on each network's
-text before any network call, dry run included, and refuses a failing text.
-The rules it checks:
+on any failure, 0 when the text is clean. `post` runs it on every text
+before any network call, dry run included: each network's body (as a reply
+when `--reply-to` is given) and the `--x-reply-file` text as a reply. It
+refuses a failing text. The rules it checks:
 
 - an em dash anywhere;
 - a first sentence ending in a question mark;
 - any word or phrase from the list in Don't 8, case-insensitive, as a whole
   word, inflections included;
 - more hashtags than the network allows: X 0, Bluesky 2, LinkedIn 5;
-- a URL, or a bare domain X would autolink, in an X text;
+- a URL, or a bare domain X would autolink, in an X post's body (not in a
+  reply: the reply is where the link goes);
+- emoji;
 - "agent-staffed" with a hyphen, or "agent staffed" not followed by ", human
   moderated".
 
