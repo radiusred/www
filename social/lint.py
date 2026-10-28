@@ -1,9 +1,9 @@
 """The guide's mechanical rules, checked before a post goes out.
 
 ``announcements/README.md`` is the writing guide; this module is the part of
-it a program can check. The banned list and the hashtag limits live here and
-nowhere else: the guide lists them identically, and a test pins the two
-copies to each other.
+it a program can check. The banned list, the call-to-action labels and the
+hashtag limits live here and nowhere else: the guide lists them identically,
+and a test pins the two copies to each other.
 """
 
 from __future__ import annotations
@@ -36,6 +36,26 @@ BANNED = (
     "the best part",
     "excited to announce",
     "thrilled to announce",
+)
+
+# The guide's "Use call-to-action labels" list (Don't 5), lower case. These
+# are labels, so they match as written: either apostrophe, any whitespace
+# between words, and ``…`` standing for any run of words inside the same
+# sentence (``read the record to find out what changed``). A label fails
+# only where it opens a phrase: the start of the text or a line, after a
+# sentence end or a colon or semicolon, after an opening quote or bracket,
+# or as the start of a Bluesky ``[label](url)`` label. "the reviewer found
+# what changed in the diff" is a sentence, not a label, and passes.
+CTA_LABELS = (
+    "what changed",
+    "here's how",
+    "find out",
+    "read the … to find out",
+    "learn more",
+    "check it out",
+    "see how",
+    "click",
+    "link in",
 )
 
 # Hashtags each network allows. None on X: they read as spam there. Two on
@@ -82,6 +102,29 @@ def _banned_pattern(phrase: str) -> re.Pattern:
 
 BANNED_PATTERNS = tuple((phrase, _banned_pattern(phrase)) for phrase in BANNED)
 
+# What may precede a label for it to open a phrase. ``^`` is a line start
+# under MULTILINE; the class is a sentence end, a colon or semicolon, or an
+# opening quote or bracket (``[`` is the Bluesky link label's).
+_PHRASE_START = "(?:^|[.!?:;(\\[\"'“‘])\\s*"
+
+
+def _label_pattern(phrase: str) -> re.Pattern:
+    parts = []
+    for ch in phrase:
+        if ch == " ":
+            parts.append(r"\s+")
+        elif ch == "'":
+            parts.append("['’]")
+        elif ch == "…":
+            parts.append(r"[^.!?\n]*?")
+        else:
+            parts.append(re.escape(ch))
+    body = "".join(parts)
+    return re.compile(rf"{_PHRASE_START}({body})(?!\w)", re.IGNORECASE | re.MULTILINE)
+
+
+CTA_LABEL_PATTERNS = tuple((phrase, _label_pattern(phrase)) for phrase in CTA_LABELS)
+
 
 def _around(text: str, start: int, end: int, margin: int = 20) -> str:
     """The match with a little context either side, on one line."""
@@ -120,6 +163,17 @@ def urls(text: str) -> list[str]:
     return found
 
 
+def cta_labels(text: str) -> list[tuple[str, int, int]]:
+    """Every call-to-action label opening a phrase in the body, as ``(phrase,
+    start, end)`` of the label itself. URLs are masked first so a dot inside
+    one is not a sentence end; the spans are the original text's."""
+    masked = _mask_urls(text)
+    found = []
+    for phrase, pattern in CTA_LABEL_PATTERNS:
+        found.extend((phrase, m.start(1), m.end(1)) for m in pattern.finditer(masked))
+    return sorted(found, key=lambda hit: hit[1:])
+
+
 def emojis(text: str) -> list[str]:
     """Every emoji sequence in the body, as X's weighted count sees them."""
     return [text[s:e] for s, e in x.emoji_spans(text)]
@@ -144,6 +198,9 @@ def lint(text: str, network: str, reply: bool = False) -> list[Failure]:
     for phrase, pattern in BANNED_PATTERNS:
         for match in pattern.finditer(text):
             failures.append(Failure(f"banned word {phrase!r}", _around(text, match.start(), match.end())))
+
+    for phrase, start, end in cta_labels(text):
+        failures.append(Failure(f"call-to-action label {phrase!r}", _around(text, start, end)))
 
     tags = hashtags(text)
     limit = HASHTAG_LIMITS[network]

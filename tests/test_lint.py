@@ -96,6 +96,78 @@ def test_banned_word_failure_names_the_word_and_the_fragment():
     assert long[0].fragment == "…" + "a" * 19 + " leverage " + "b" * 19 + "…"  # 20 characters of context each side
 
 
+# --- call-to-action labels (www#96) ---------------------------------------------
+
+M24_REPLY = "What changed and how it was checked: https://github.com/radiusred/gh-codecrew/blob/main/docs/milestones/24-x.md"
+
+
+@pytest.mark.parametrize(
+    "failing, passing, label",
+    [
+        ("What changed: the merge gate now checks CI first.", "The reviewer found what changed in the diff.", "what changed"),
+        ("Here's how the gate works.", "The old post said here's how and linked the page.", "here's how"),
+        ("Find out what the reviewer caught.", "The reviewer will find out when the tests run.", "find out"),
+        ("Read the record to find out what changed.", "We read the record to find out what the reviewer caught.", "read the … to find out"),
+        ("Learn more at the link.", "We learn more from each review.", "learn more"),
+        ("Check it out: the record is on main.", "The reviewer will check it out before merging.", "check it out"),
+        ("See how the gate works.", "You can see how the gate works in the record.", "see how"),
+        ("Click the link for the record.", "A single click opens the record.", "click"),
+        ("Link in the reply.", "The link in the reply is the record.", "link in"),
+    ],
+)
+def test_each_call_to_action_label_fails_opening_a_phrase_and_passes_inside_one(failing, passing, label):
+    assert rules(failing, "x") == [f"call-to-action label {label!r}"]
+    assert rules(passing, "x") == []
+
+
+def test_the_m24_reply_fails_as_an_x_reply():
+    failures = lint.lint(M24_REPLY, "x", reply=True)
+    assert [f.rule for f in failures] == ["call-to-action label 'what changed'"]
+    assert failures[0].fragment == "What changed and how it was chec…"
+
+
+def test_a_label_fails_in_a_bluesky_link_label_but_a_plain_label_passes():
+    assert rules("v2 is out. [What changed](https://codecrew.works/) #CodeReview") == ["call-to-action label 'what changed'"]
+    assert rules("v2 is out. [Read the record to find out why](https://codecrew.works/)") == ["call-to-action label 'read the … to find out'"]
+    assert rules("v2 is out. [The M24 record](https://codecrew.works/) #CodeReview") == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "what changed: the gate.",  # lower case at the start
+        "WHAT CHANGED: the gate.",
+        "Here’s how the gate works.",  # curly apostrophe
+        "v2 is out: here's how it works.",  # after a colon
+        "v2 is out; here's how it works.",  # after a semicolon
+        "v2 is out.\nHere's how it works.",  # a new line
+        "v2 is out. \"Here's how\" is the label we dropped.",  # in quotes
+        "v2 is out.Here's how it works.",  # no space after the sentence end
+    ],
+)
+def test_a_label_opens_a_phrase_after_any_boundary_in_any_case(text):
+    found = rules(text)
+    assert len(found) == 1 and found[0].startswith("call-to-action label"), found
+
+
+def test_a_label_inside_a_sentence_or_after_a_comma_is_not_a_label():
+    assert rules("The record lists the tasks, what changed, and who reviewed them.") == []
+    assert rules("We clicked through the console. Clicking is fine, clicks are not labels.") == []
+    assert rules("Nobody asked what changed. See https://codecrew.works/ for the rule.") == []
+
+
+def test_a_dot_inside_a_url_is_not_a_phrase_boundary():
+    assert rules("The record is at https://codecrew.works/docs/what-changed.click here.") == []
+    assert lint.cta_labels("v2.1.2 click") == []
+
+
+def test_the_ellipsis_in_read_the_to_find_out_stays_inside_one_sentence():
+    assert rules("Read the record. To find out more, ask.", "x") == []
+    assert lint.cta_labels("Read the long and detailed milestone record to find out what shipped") == [
+        ("read the … to find out", 0, 55),
+    ]
+
+
 @pytest.mark.parametrize(
     "network, tags, allowed",
     [
