@@ -424,14 +424,31 @@ def cmd_auth_x(args, creds: Credentials, transport) -> int:
     and persisted under its key names, never printed."""
     expected = creds.require("X_HANDLE").lstrip("@")
     consumer_key, consumer_secret = creds.require("X_API_KEY"), creds.require("X_API_SECRET")
-    temporary = x.request_token(transport, consumer_key, consumer_secret)
+    # A token endpoint's error body may reflect what was sent to it, so an
+    # ApiError from either leg is reported by step and status alone — never
+    # its body, never through main's traceback.
+    try:
+        temporary = x.request_token(transport, consumer_key, consumer_secret)
+    except ApiError as err:
+        print(
+            f"error: X refused the request token (HTTP {err.response.status}); check X_API_KEY and X_API_SECRET "
+            "and that OAuth 1.0a is enabled on the app — nothing stored"
+        )
+        return 1
     print(f"1. Signed in to X as @{expected}, open:\n\n   " + x.authorize_url(temporary["oauth_token"]) + "\n")
     print("2. Approve the app; X shows a PIN.")
     pin = input("3. Enter the PIN: ").strip()
     if not pin:
         print("error: no PIN given")
         return 1
-    tokens = x.access_token(transport, consumer_key, consumer_secret, temporary["oauth_token"], temporary["oauth_token_secret"], pin)
+    try:
+        tokens = x.access_token(transport, consumer_key, consumer_secret, temporary["oauth_token"], temporary["oauth_token_secret"], pin)
+    except ApiError as err:
+        print(
+            f"error: X refused the PIN exchange (HTTP {err.response.status}); the PIN may be wrong or expired, "
+            "run auth x again — nothing stored"
+        )
+        return 1
     username = tokens.get("screen_name", "")
     if username.lower() != expected.lower():
         print(f"error: the tokens belong to @{username}, not @{expected} ({creds.key('X_HANDLE')}) — nothing stored")
