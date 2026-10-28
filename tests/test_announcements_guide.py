@@ -75,3 +75,13 @@ def test_readme_no_longer_says_posted_texts_are_kept_in_the_tree():
     section = _social_section(README.read_text())
     assert "kept in `announcements/`" not in section
     assert "announcements/README.md" in section, "the runbook still points at the guide"
+
+
+def test_readme_runbook_covers_both_accounts_auth_x_and_replies():
+    section = _social_section(README.read_text())
+    for needle in (
+        "--account codecrew", "CODECREW_X_ACCESS_TOKEN", "CODECREW_BSKY_HANDLE",
+        "auth x", "--reply-to", "--x-reply-file", "$0.215",
+    ):
+        assert needle in section, f"{needle!r} is missing from the social runbook"
+    assert "there is no reply command" not in section
