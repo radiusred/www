@@ -438,13 +438,15 @@ def cmd_auth_linkedin(args, creds: Credentials, transport) -> int:
     """The re-consent playbook: consent URL → code → exchange → write-back.
     Needs a human signed in to LinkedIn as a Page admin. Run it when the
     refresh token expires or when the app's scopes change."""
-    client = linkedin_client(creds, transport)
+    # The terminal guard comes first: before any credential is required or a
+    # client built, so a piped stdin always gets this one line and exit 1.
     redirect_uri = args.redirect_uri or creds.get("LINKEDIN_REDIRECT_URI") or "http://localhost:8765/callback"
     parsed = urllib.parse.urlparse(redirect_uri)
     listening = parsed.hostname in ("localhost", "127.0.0.1") and not args.paste
     if not listening and not _interactive():
         _say("error: auth linkedin --paste reads the code from stdin and needs an interactive terminal; run it from a shell (nothing requested, nothing stored)")
         return 1
+    client = linkedin_client(creds, transport)
     url, state = client.auth_url(redirect_uri, tuple(args.scope) if args.scope else linkedin.DEFAULT_SCOPES)
     print("1. Make sure this redirect URI is registered on the app's Auth tab:", redirect_uri)
     print("2. Signed in as the Page admin, open:\n\n   " + url + "\n")
@@ -478,11 +480,13 @@ def cmd_auth_x(args, creds: Credentials, transport) -> int:
     OAuth 1.0a flow. Someone signed in to X as the account clicks through and
     reads the PIN back; the tokens are checked against the account's handle
     and persisted under its key names, never printed."""
-    expected = creds.require("X_HANDLE").lstrip("@")
-    consumer_key, consumer_secret = creds.require("X_API_KEY"), creds.require("X_API_SECRET")
+    # The terminal guard comes first: before any credential is required, so a
+    # piped stdin always gets this one line and exit 1, whatever the env file.
     if not _interactive():
         _say("error: auth x reads the PIN from stdin and needs an interactive terminal; run it from a shell (nothing requested, nothing stored)")
         return 1
+    expected = creds.require("X_HANDLE").lstrip("@")
+    consumer_key, consumer_secret = creds.require("X_API_KEY"), creds.require("X_API_SECRET")
     # A token endpoint's error body may reflect what was sent to it, so an
     # ApiError from either leg is reported by step and status alone — never
     # its body, never through main's traceback.
