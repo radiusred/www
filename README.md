@@ -134,6 +134,7 @@ the tool says so — see `check` below.
 ```sh
 uv run -m social check                       # prove auth without posting (Radius Red)
 uv run -m social --account codecrew check    # the same for CodeCrew's accounts
+uv run -m social lint --to x --text-file x.txt   # the guide's mechanical rules; post runs it too
 uv run -m social post --to bluesky --to linkedin \
     --text-file announce.txt --link URL --title "…" --dry-run   # show the requests
 uv run -m social post --to bluesky --to linkedin \
@@ -196,7 +197,7 @@ uv run -m social comment --urn urn:li:share:123 \
   `announcements/README.md`: `--x-reply-file <file>` posts the body, then the
   file's text as a reply to it, and prints two JSON lines, one URL each. The
   body must then carry no URL — not a scheme URL, not a bare domain X would
-  autolink — and the tool refuses one before any network call; the reply's
+  autolink — and `lint` refuses one before any network call; the reply's
   length is checked up front too. If the body posts and the reply fails, the
   body's URL is printed as usual, the reply's line carries the error, and a
   stderr line gives the exact `--reply-to` command to retry the reply alone.
@@ -215,6 +216,17 @@ uv run -m social comment --urn urn:li:share:123 \
   before any call. `--dry-run` fetches nothing and prints the Bluesky refs as
   placeholders. A reply on X is billed like a post ($0.015, or $0.200 with a
   URL).
+- `lint --to <network>` (`--text` or `--text-file`) checks a text against the
+  guide's mechanical rules — an em dash, a first sentence that is a question,
+  the banned words, the network's hashtag limit, a URL in an X body, emoji,
+  and the "agent staffed, human moderated" form — printing each failure with
+  the rule and the fragment, exit 1 on any; `--reply` marks a reply, which
+  may carry the link. `post` runs it on every text before any network call,
+  dry run included: each network's body (as a reply when `--reply-to` is
+  given) and the `--x-reply-file` text as a reply; it refuses a failing text;
+  `--skip-lint` sends a text the operator has approved as it stands, with one
+  stderr line saying lint was skipped. The rules, and the list, are in
+  `announcements/README.md` and `social/lint.py`.
 - `comment` posts a comment on a LinkedIn share as the Page, given the URN
   `post` printed. It is where a LinkedIn post's links go: inline URLs cost the
   post reach, so the body says "links in the first comment" and this command
