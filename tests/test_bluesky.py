@@ -116,3 +116,93 @@ def test_grapheme_limit_counts_the_display_text_not_the_url():
     record = bluesky.build_post(f"[short]({long_url})", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
     assert record["text"] == "short"
     assert record["facets"][0]["features"][0]["uri"] == long_url
+
+
+# --- replies: root and parent strong refs (www#91, M10-R2) ---------------------
+
+
+@pytest.mark.parametrize(
+    "ref, expected",
+    [
+        ("at://did:plc:abc/app.bsky.feed.post/3kxyz", ("did:plc:abc", "3kxyz")),
+        ("https://bsky.app/profile/example.bsky.social/post/3kxyz", ("example.bsky.social", "3kxyz")),
+        ("https://bsky.app/profile/did:plc:abc/post/3kxyz?ref=x", ("did:plc:abc", "3kxyz")),
+        (" https://www.bsky.app/profile/example.bsky.social/post/3kxyz/ \n", ("example.bsky.social", "3kxyz")),
+    ],
+)
+def test_parse_post_ref_reads_at_uris_and_bsky_app_urls(ref, expected):
+    assert bluesky.parse_post_ref(ref) == expected
+
+
+@pytest.mark.parametrize("ref", ["", "3kxyz", "https://x.com/a/status/1", "at://did:plc:abc/app.bsky.feed.like/3k", "https://bsky.app/profile/example.bsky.social"])
+def test_parse_post_ref_refuses_other_strings(ref):
+    with pytest.raises(ValueError, match="is not a Bluesky post at:// URI or bsky.app post URL"):
+        bluesky.parse_post_ref(ref)
+
+
+def _session(transport):
+    transport.expect("POST", "createSession", body={"did": "did:plc:me", "accessJwt": "jwt", "handle": "example.bsky.social"})
+
+
+def test_reply_refs_to_a_top_level_post_make_it_both_root_and_parent(transport):
+    _session(transport)
+    transport.expect("GET", "app.bsky.feed.getPosts", body={"posts": [{
+        "uri": "at://did:plc:abc/app.bsky.feed.post/3kxyz", "cid": "bafyparent",
+        "record": {"$type": "app.bsky.feed.post", "text": "hello"},
+    }]})
+    client = bluesky.Bluesky(transport, "example.bsky.social", "app-pass")
+    refs = client.reply_refs("at://did:plc:abc/app.bsky.feed.post/3kxyz")
+    parent = {"uri": "at://did:plc:abc/app.bsky.feed.post/3kxyz", "cid": "bafyparent"}
+    assert refs == {"root": parent, "parent": parent}
+    get = transport.calls[1]
+    assert get["method"] == "GET"
+    assert get["url"] == "https://bsky.social/xrpc/app.bsky.feed.getPosts?uris=at%3A%2F%2Fdid%3Aplc%3Aabc%2Fapp.bsky.feed.post%2F3kxyz"
+    assert get["headers"]["Authorization"] == "Bearer jwt"  # the PDS proxies the read to the appview for a session
+
+
+def test_reply_refs_to_a_reply_keep_the_threads_root(transport):
+    _session(transport)
+    transport.expect("GET", "app.bsky.feed.getPosts", body={"posts": [{
+        "uri": "at://did:plc:abc/app.bsky.feed.post/mid", "cid": "bafymid",
+        "record": {"$type": "app.bsky.feed.post", "text": "a reply", "reply": {
+            "root": {"uri": "at://did:plc:op/app.bsky.feed.post/first", "cid": "bafyroot"},
+            "parent": {"uri": "at://did:plc:op/app.bsky.feed.post/first", "cid": "bafyroot"},
+        }},
+    }]})
+    client = bluesky.Bluesky(transport, "example.bsky.social", "app-pass")
+    refs = client.reply_refs("at://did:plc:abc/app.bsky.feed.post/mid")
+    assert refs == {
+        "root": {"uri": "at://did:plc:op/app.bsky.feed.post/first", "cid": "bafyroot"},
+        "parent": {"uri": "at://did:plc:abc/app.bsky.feed.post/mid", "cid": "bafymid"},
+    }
+
+
+def test_reply_refs_resolve_a_bsky_app_url_handle_to_a_did_first(transport):
+    transport.expect("GET", "com.atproto.identity.resolveHandle", body={"did": "did:plc:abc"})
+    _session(transport)
+    transport.expect("GET", "app.bsky.feed.getPosts", body={"posts": [{"uri": "at://did:plc:abc/app.bsky.feed.post/3kxyz", "cid": "c", "record": {"text": "x"}}]})
+    client = bluesky.Bluesky(transport, "example.bsky.social", "app-pass")
+    refs = client.reply_refs("https://bsky.app/profile/other.example/post/3kxyz")
+    assert refs["parent"] == {"uri": "at://did:plc:abc/app.bsky.feed.post/3kxyz", "cid": "c"}
+    resolve = transport.calls[0]
+    assert resolve["url"] == "https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=other.example"
+    assert "Authorization" not in resolve["headers"]  # handle resolution is public
+    assert [c["url"].rsplit("/", 1)[-1].split("?")[0] for c in transport.calls] == ["com.atproto.identity.resolveHandle", "com.atproto.server.createSession", "app.bsky.feed.getPosts"]
+
+
+def test_reply_refs_report_a_missing_post_and_a_failed_lookup(transport):
+    _session(transport)
+    transport.expect("GET", "app.bsky.feed.getPosts", body={"posts": []})
+    client = bluesky.Bluesky(transport, "example.bsky.social", "app-pass")
+    with pytest.raises(ValueError, match="no post at at://did:plc:abc/app.bsky.feed.post/gone"):
+        client.reply_refs("at://did:plc:abc/app.bsky.feed.post/gone")
+    transport.expect("GET", "com.atproto.identity.resolveHandle", status=400, body={"error": "InvalidRequest", "message": "Unable to resolve handle"})
+    with pytest.raises(ApiError, match="Bluesky handle lookup failed: HTTP 400 .*Unable to resolve"):
+        client.reply_refs("https://bsky.app/profile/nobody.example/post/3k")
+
+
+def test_build_post_with_reply_refs_carries_them_in_the_record():
+    refs = {"root": {"uri": "at://r", "cid": "cr"}, "parent": {"uri": "at://p", "cid": "cp"}}
+    record = bluesky.build_post("thanks #tag", reply=refs, created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    assert record["reply"] == refs and record["facets"][0]["features"][0]["tag"] == "tag"
+    assert "reply" not in bluesky.build_post("plain", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
