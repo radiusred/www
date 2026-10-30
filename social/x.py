@@ -479,14 +479,16 @@ class X:
         query = {"user.fields": "public_metrics"}
         return self._request("X user read failed", "GET", "/2/users/me", query=query).json().get("data", {})
 
-    def posts(self, user_id: str, start: str, end: str, max_posts: int) -> tuple[list[dict], bool]:
+    def posts(self, user_id: str, start: str, end: str, max_posts: int, on_page=None) -> tuple[list[dict], bool]:
         """The user's own posts from ``start`` to ``end`` (RFC 3339), reposts
         left out, each with ``public_metrics``; page by page, newest first.
 
         X bills each post read, so no page asks for more than the posts left
         of ``max_posts``. A page holds 5 to 100: when fewer than 5 are left,
         the read stops there. Returns the posts and whether more were left
-        unread."""
+        unread. ``on_page(n)`` is called with the post count of each page
+        that comes back, so a caller can count billed reads even when a later
+        page fails."""
         found: list[dict] = []
         token = None
         while True:
@@ -503,7 +505,10 @@ class X:
             if token:
                 query["pagination_token"] = token
             page = self._request("X posts read failed", "GET", f"/2/users/{user_id}/tweets", query=query).json()
-            found.extend(page.get("data") or [])
+            data = page.get("data") or []
+            found.extend(data)
+            if on_page:
+                on_page(len(data))
             token = (page.get("meta") or {}).get("next_token")
             if not token:
                 return found, False

@@ -302,6 +302,20 @@ def test_out_of_credits_is_reported_on_x_alone(env_file, transport, capsys):
     assert "error" not in rep["networks"]["bluesky"]
 
 
+def test_a_later_x_page_failure_keeps_the_reads_before_it(env_file, transport, capsys):
+    _queue_bluesky(transport)
+    transport.expect("GET", "/2/users/me", body={"data": {"id": "77", "username": "example_uk", "public_metrics": {"followers_count": 120}}})
+    transport.expect("GET", "/2/users/77/tweets", body={
+        "data": [_tweet(str(i), "2026-10-28T12:00:00.000Z") for i in range(100)], "meta": {"next_token": "t2"},
+    })
+    transport.expect("GET", "/2/users/77/tweets", status=429, body={"title": "Too Many Requests"})
+    assert _run(env_file, transport, "--x-max-posts", "150", "--x-budget", "1", "--json") == 1
+    rep = json.loads(capsys.readouterr().out)
+    assert "HTTP 429" in rep["networks"]["x"]["error"]
+    assert rep["x_cost"]["users_read"] == 1 and rep["x_cost"]["posts_read"] == 100
+    assert rep["x_cost"]["spent_usd"] == 0.51
+
+
 def test_bluesky_needs_only_the_handle(tmp_path, transport, capsys):
     env = tmp_path / "social.env"
     env.write_text("BSKY_HANDLE=example.bsky.social\n")

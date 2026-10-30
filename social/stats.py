@@ -99,15 +99,19 @@ def _totals(posts: list[dict], metrics) -> dict:
 def x_report(client: x.X, win: Window, max_posts: int, now: datetime, spend: dict) -> dict:
     """One user read (followers, and the tokens' owner checked against the
     handle), then the posts in the window. ``spend`` counts the reads that
-    came back, for the cost estimate."""
+    came back, page by page, for the cost estimate: a failure on a later page
+    keeps the reads before it."""
     me = client.me_metrics()
     spend["users_read"] += 1
     username = me.get("username", "")
     if username.lower() != client.handle.lower():
         raise ValueError(f"the X tokens belong to @{username}, not @{client.handle}")
     end = min(win.end, now - X_END_MARGIN)
-    found, truncated = client.posts(me["id"], _rfc3339(win.start), _rfc3339(end), max_posts)
-    spend["posts_read"] += len(found)
+
+    def counted(n: int) -> None:
+        spend["posts_read"] += n
+
+    found, truncated = client.posts(me["id"], _rfc3339(win.start), _rfc3339(end), max_posts, on_page=counted)
     posts = []
     for post in found:
         metrics = post.get("public_metrics") or {}
