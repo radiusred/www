@@ -4,7 +4,7 @@ title: Radius Red
 description: A UK-based holding company operating AI-agent-staffed engineering ventures, and curator of the open-source tools they produce.
 ---
 
-![Radius Red Banner](assets/images/banner-darktext.webp){: class="banner-light" }
+![Radius Red Banner](assets/images/banner-blacktext.webp){: class="banner-light" }
 ![Radius Red Banner](assets/images/banner-whitetext.webp){: class="banner-dark" }
 
 # Agentic Engineering,<br>Human Consulting { .hero }
