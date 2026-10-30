@@ -380,8 +380,13 @@ name = "LinkedIn"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/bluesky"
-link = "https://bsky.app/profile/radiusred.bsky.social"
+link = "https://bsky.app/profile/radiusred.uk"
 name = "Bluesky"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/x-twitter"
+link = "https://x.com/radiusred_uk"
+name = "X"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
