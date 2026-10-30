@@ -1,5 +1,7 @@
 """Bluesky: app-password session, then one ``app.bsky.feed.post`` record —
-a top-level post, or a reply with ``root`` and ``parent`` strong refs."""
+a top-level post, or a reply with ``root`` and ``parent`` strong refs. The
+reads ``social stats`` makes (a profile, an author feed) go to the public
+AppView with no session."""
 
 from __future__ import annotations
 
@@ -12,6 +14,10 @@ from datetime import datetime, timezone
 from .transport import ApiError, Response
 
 DEFAULT_PDS = "https://bsky.social"
+# The AppView's public, unauthenticated endpoint: reads only.
+PUBLIC_API = "https://public.api.bsky.app"
+FEED_PAGE = 100  # getAuthorFeed's largest limit
+MAX_FEED_PAGES = 20
 MAX_GRAPHEMES = 300
 URL_RE = re.compile(r"https?://[^\s<>()\[\]\"']+")
 # [label](https://…) — the label is what readers see; the facet carries the URL.
@@ -130,6 +136,57 @@ def build_post(
     if reply:
         record["reply"] = reply
     return record
+
+
+# --- public reads: no session, no credentials (``social stats``) ----------
+
+
+def _public(transport, what: str, method: str, params: dict[str, str]) -> dict:
+    resp = transport("GET", f"{PUBLIC_API}/xrpc/{method}?{urllib.parse.urlencode(params)}", {}, None)
+    if not resp.ok:
+        raise ApiError(what, resp)
+    return resp.json()
+
+
+def profile(transport, actor: str) -> dict:
+    """``app.bsky.actor.getProfile``: ``did``, ``handle``, ``followersCount``."""
+    return _public(transport, "Bluesky profile read failed", "app.bsky.actor.getProfile", {"actor": actor})
+
+
+def _created(post: dict) -> datetime:
+    stamp = (post.get("record") or {}).get("createdAt") or post.get("indexedAt", "")
+    return datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+
+
+def author_posts(
+    transport, did: str, start: datetime, end: datetime, max_pages: int = MAX_FEED_PAGES
+) -> tuple[list[dict], bool]:
+    """The account's own posts created from ``start`` to ``end`` (end not
+    included), replies too, newest first. Reposts of other accounts' posts
+    are skipped. The feed runs newest first, so the read stops at the first
+    page that reaches past ``start``, or after ``max_pages``. Returns the
+    posts and whether the window may hold more that were left unread."""
+    found: list[dict] = []
+    cursor = None
+    for _ in range(max_pages):
+        params = {"actor": did, "limit": str(FEED_PAGE), "filter": "posts_with_replies"}
+        if cursor:
+            params["cursor"] = cursor
+        page = _public(transport, "Bluesky feed read failed", "app.bsky.feed.getAuthorFeed", params)
+        older = False
+        for item in page.get("feed") or []:
+            post = item.get("post") or {}
+            if item.get("reason") or (post.get("author") or {}).get("did") != did:
+                continue
+            created = _created(post)
+            if created < start:
+                older = True
+            elif created < end:
+                found.append(post)
+        cursor = page.get("cursor")
+        if older or not cursor:
+            return found, False
+    return found, True
 
 
 class Bluesky:

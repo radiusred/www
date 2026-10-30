@@ -6,6 +6,8 @@ the PIN-based three-legged flow here mints them (``request_token`` →
 ``authorize_url`` → ``access_token``), and the CLI persists them. A post can
 be a reply (``reply.in_reply_to_tweet_id``); there is still no link card, and
 since radiusred/ops#38 a post's links go in a reply rather than the body.
+The reads ``social stats`` makes (one user, then the user's posts with their
+public metrics) are signed GETs; X bills each one, so the caller caps them.
 """
 
 from __future__ import annotations
@@ -24,6 +26,8 @@ from .transport import ApiError, Response
 
 API = "https://api.x.com"
 CONSOLE = "https://console.x.com/"
+# GET /2/users/:id/tweets takes max_results from 5 to 100.
+MIN_PAGE, MAX_PAGE = 5, 100
 # A post ID, or the status URL the web client shows for it.
 POST_ID_RE = re.compile(r"^\d+$")
 STATUS_URL_RE = re.compile(r"^https?://(?:www\.|mobile\.)?(?:x|twitter)\.com/(?:[^/?#]+/)+status(?:es)?/(\d+)(?:[/?#].*)?$")
@@ -441,17 +445,23 @@ class X:
         self.access_token = access_token
         self.access_token_secret = access_token_secret
 
-    def _request(self, what: str, method: str, path: str, body: dict | None = None) -> Response:
+    def _request(
+        self, what: str, method: str, path: str, body: dict | None = None, query: dict[str, str] | None = None
+    ) -> Response:
+        """One signed call. ``query`` is signed and goes on the URL; a JSON
+        ``body`` is not signed, as the spec has it."""
         url = f"{API}{path}"
         headers = {
             "Authorization": authorization_header(
-                method, url, self.api_key, self.api_secret, self.access_token, self.access_token_secret
+                method, url, self.api_key, self.api_secret, self.access_token, self.access_token_secret, query=query
             )
         }
         payload = None
         if body is not None:
             headers["Content-Type"] = "application/json"
             payload = json.dumps(body, ensure_ascii=False).encode()
+        if query:
+            url += "?" + "&".join(f"{percent_encode(k)}={percent_encode(v)}" for k, v in query.items())
         resp = self.transport(method, url, headers, payload)
         if out_of_credits(resp):
             raise OutOfCredits(what, resp)
@@ -462,6 +472,41 @@ class X:
     def me(self) -> dict:
         """``GET /2/users/me`` — the ``data`` object: ``id``, ``name``, ``username``."""
         return self._request("X check failed", "GET", "/2/users/me").json().get("data", {})
+
+    def me_metrics(self) -> dict:
+        """``GET /2/users/me`` with ``public_metrics``: one user read, for the
+        ``id``, the ``username`` and ``public_metrics.followers_count``."""
+        query = {"user.fields": "public_metrics"}
+        return self._request("X user read failed", "GET", "/2/users/me", query=query).json().get("data", {})
+
+    def posts(self, user_id: str, start: str, end: str, max_posts: int) -> tuple[list[dict], bool]:
+        """The user's own posts from ``start`` to ``end`` (RFC 3339), reposts
+        left out, each with ``public_metrics``; page by page, newest first.
+
+        X bills each post read, so no page asks for more than the posts left
+        of ``max_posts``. A page holds 5 to 100: when fewer than 5 are left,
+        the read stops there. Returns the posts and whether more were left
+        unread."""
+        found: list[dict] = []
+        token = None
+        while True:
+            left = max_posts - len(found)
+            if left < MIN_PAGE:
+                return found, True
+            query = {
+                "start_time": start,
+                "end_time": end,
+                "exclude": "retweets",
+                "max_results": str(min(MAX_PAGE, left)),
+                "tweet.fields": "created_at,public_metrics,in_reply_to_user_id",
+            }
+            if token:
+                query["pagination_token"] = token
+            page = self._request("X posts read failed", "GET", f"/2/users/{user_id}/tweets", query=query).json()
+            found.extend(page.get("data") or [])
+            token = (page.get("meta") or {}).get("next_token")
+            if not token:
+                return found, False
 
     def post_request(self, body: dict) -> dict:
         return {"method": "POST", "url": f"{API}/2/tweets", "body": body}
