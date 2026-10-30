@@ -110,6 +110,7 @@ def test_guide_keeps_its_sections():
         "## Bluesky budget",
         "## X budget",
         "## Credentials",
+        "## Measuring reach",
     ):
         assert heading in text, f"{heading!r} is missing from the guide"
 
@@ -221,3 +222,17 @@ def test_readme_says_auth_needs_a_terminal():
     section = _flat(_social_section(README.read_text()))
     assert "when stdin is not a terminal" in section and "before requesting any token" in section
     assert "`--paste` reads the code from the terminal" in section
+
+
+def test_guide_measures_github_counts_and_names_who_runs_them():
+    """M12-R3: the ``ghcounts`` part of "Measuring reach" says what the
+    ``--help`` line says."""
+    from ghcounts import cli as ghcounts_cli
+
+    text = _flat(GUIDE.read_text())
+    _, _, section = text.partition("## Measuring reach")
+    assert "uv run -m ghcounts" in section
+    assert "`ghcounts` is run by the chief of staff, with its own GitHub App token in `GH_TOKEN`" in section
+    assert ghcounts_cli.WHO_RUNS_IT == "Run by the chief of staff, with its own GitHub App token in GH_TOKEN."
+    for repo in ghcounts_cli.DEFAULT_REPOS:
+        assert f"`{repo}`" in section

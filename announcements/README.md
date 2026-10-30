@@ -250,3 +250,35 @@ pitfall (the 25-character OAuth 1.0 Consumer Key, not the 34-character OAuth
 2.0 Client ID) are in the main README; `check` verifies the tokens belong to
 the account's handle, and reports an account with no credits as *out of
 credits*.
+
+## Measuring reach
+
+The brand numbers come from tools, never from estimates. Each tool only
+reads; it writes nothing to any network.
+
+### GitHub counts: `ghcounts`
+
+`ghcounts` is run by the chief of staff, with its own GitHub App token in
+`GH_TOKEN`:
+
+```sh
+export GH_TOKEN=$(gh codecrew identity token <slug>)
+uv run -m ghcounts
+uv run -m ghcounts --repo radiusred/tradedesk --since 2026-10-01 --until 2026-10-31 --json
+```
+
+For each repository and in total it gives the stars now, the new stars in the
+window (from the date of each star), and the issues, pull requests and
+discussions that outside people opened in the window. It lists each counted
+item with its URL, author and date. The window is UTC dates, both days
+included; the default is the last 7 full days. The default repositories are
+`radiusred/tradedesk`, `radiusred/tradedesk-marketdata`,
+`radiusred/tradedesk-miner` and `radiusred/ha-sinkhole`; `--repo` (repeatable)
+names others.
+
+Outside means not a bot and not a member of the repository's owner org. The
+tool reads membership from each item's `author_association` (`OWNER`,
+`MEMBER`). It also reads the org member list when the token can; an App token
+usually cannot, and the output then says so. A repository with Discussions off
+counts 0 and says so. `--json` prints one object with the window, each
+repository's counts and items, and the totals.
