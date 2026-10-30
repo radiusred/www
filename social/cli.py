@@ -1,4 +1,5 @@
-"""``python -m social`` — check credentials, lint a text, post or reply, mint tokens.
+"""``python -m social`` — check credentials, lint a text, post or reply, mint tokens,
+report reach.
 
 ``--account radiusred`` (the default) or ``--account codecrew`` picks whose
 credentials every verb uses; LinkedIn is Radius Red's alone.
@@ -13,9 +14,10 @@ import sys
 import time
 import urllib.parse
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from . import bluesky, linkedin, lint as lintmod, x
+from . import bluesky, linkedin, lint as lintmod, stats, x
 from .config import ACCOUNTS, DEFAULT_ACCOUNT, Credentials, MissingCredential, load_credentials
 from .transport import ApiError, UrllibTransport
 
@@ -24,6 +26,7 @@ REPLY_NETWORKS = ("bluesky", "x")
 # LinkedIn posts as the Radius Red Page; no other account has one.
 LINKEDIN_ACCOUNT = DEFAULT_ACCOUNT
 REFRESH_AHEAD = 7 * 24 * 3600  # refresh when the access token has under a week left
+STATS_RUNNER = "Run by the writer seat, which alone holds the social credentials."
 
 
 def _stamp(epoch: int | float) -> str:
@@ -406,6 +409,37 @@ def cmd_comment(args, creds: Credentials, transport) -> int:
     return 0
 
 
+def cmd_stats(args, creds: Credentials, transport, now: datetime | None = None) -> int:
+    """Reach and followers for the account over a window of UTC days. The X
+    cost guard runs first: the most the run can cost goes to stderr, and a
+    maximum over ``--x-budget`` stops the run before any network call."""
+    now = now or datetime.now(timezone.utc)
+    win = stats.window(args.since, args.until, now)
+    _say(stats.cost_line(args.x_max_posts, args.x_budget))
+    if stats.max_x_cost(args.x_max_posts) > args.x_budget:
+        _say("error: that is over --x-budget; lower --x-max-posts or raise --x-budget (nothing read)")
+        return 1
+    rep = stats.report(creds, transport, win, args.x_max_posts, args.x_budget, now, x_client)
+    print(json.dumps(rep, indent=2, ensure_ascii=False) if args.json else stats.render(rep))
+    return 1 if any("error" in part for part in rep["networks"].values()) else 0
+
+
+def _usd(value: str) -> Decimal:
+    try:
+        amount = Decimal(value)
+    except InvalidOperation:
+        raise argparse.ArgumentTypeError(f"{value!r} is not an amount in dollars") from None
+    if not amount.is_finite() or amount < 0:
+        raise argparse.ArgumentTypeError(f"{value!r} is not an amount in dollars")
+    return amount
+
+
+def _page_count(value: str) -> int:
+    if not value.isdigit() or int(value) < x.MIN_PAGE:
+        raise argparse.ArgumentTypeError(f"{value!r}: give a whole number, {x.MIN_PAGE} or more (X reads at least {x.MIN_PAGE} posts a page)")
+    return int(value)
+
+
 def parse_callback(url_or_code: str) -> tuple[str | None, str | None]:
     """(code, state) from a redirected URL — or (the string itself, None)
     when a bare code was pasted."""
@@ -568,6 +602,22 @@ def build_parser() -> argparse.ArgumentParser:
     comment.add_argument("--text-file")
     comment.add_argument("--dry-run", action="store_true", help="print the request; send nothing")
 
+    st = sub.add_parser(
+        "stats", help="post reach and followers on X and Bluesky (read-only)",
+        description=f"Post reach and followers on X and Bluesky for one account. {STATS_RUNNER}",
+    )
+    st.add_argument("--since", help=f"first UTC day, YYYY-MM-DD (default: the {stats.DEFAULT_DAYS} days that end on --until)")
+    st.add_argument("--until", help="last UTC day, included (default yesterday)")
+    st.add_argument("--json", action="store_true", help="print one JSON object")
+    st.add_argument(
+        "--x-budget", type=_usd, default=stats.DEFAULT_X_BUDGET,
+        help=f"stop before any read when the run could cost more than this many dollars on X (default {stats.DEFAULT_X_BUDGET})",
+    )
+    st.add_argument(
+        "--x-max-posts", type=_page_count, default=stats.DEFAULT_X_MAX_POSTS,
+        help=f"read at most this many X posts, ${stats.X_POST_READ} each (default {stats.DEFAULT_X_MAX_POSTS})",
+    )
+
     auth = sub.add_parser("auth", help="mint or re-consent a network's tokens (browser leg for a human)")
     auth_sub = auth.add_subparsers(dest="network", required=True)
     auth_sub.add_parser("x", help="PIN-based OAuth 1.0a: user tokens for --account under the shared X app")
@@ -591,6 +641,8 @@ def main(argv: list[str] | None = None, transport=None, environ: dict[str, str] 
             return cmd_lint(args, creds, transport)
         if args.command == "comment":
             return cmd_comment(args, creds, transport)
+        if args.command == "stats":
+            return cmd_stats(args, creds, transport)
         if args.command == "auth" and args.network == "x":
             return cmd_auth_x(args, creds, transport)
         if args.command == "auth":
