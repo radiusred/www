@@ -116,7 +116,7 @@ def test_guide_keeps_its_sections():
 
 def test_guide_names_both_account_sets():
     text = GUIDE.read_text()
-    for handle in ("radiusred.bsky.social", "radiusred_uk", "codecrew.works", "codecrewworks"):
+    for handle in ("radiusred.uk", "radiusred_uk", "codecrew.works", "codecrewworks"):
         assert f"`{handle}`" in text
 
 

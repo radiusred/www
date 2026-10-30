@@ -12,7 +12,7 @@ tree. The commands are in the main README, "Posting to social accounts".
 
 ## Accounts
 
-- **Radius Red**: Bluesky `radiusred.bsky.social`, X `radiusred_uk`, the
+- **Radius Red**: Bluesky `radiusred.uk`, X `radiusred_uk`, the
   LinkedIn Page `linkedin.com/company/radiusred`. The CLI's default
   (`--account radiusred`). Radius Red's own news.
 - **CodeCrew**: Bluesky `codecrew.works`, X `codecrewworks`
