@@ -37,4 +37,4 @@ Curious how we operate? The latest blog posts cover engineering practice, operat
 
 ## Get in touch
 
-Message us at [hello@radiusred.uk](mailto:hello@radiusred.uk), visit our [LinkedIn](https://www.linkedin.com/company/radiusred) page or [Bluesky](https://bsky.app/profile/radiusred.bsky.social) social, we'd love to say "Hi" :wave:
+Message us at [hello@radiusred.uk](mailto:hello@radiusred.uk), visit our [LinkedIn](https://www.linkedin.com/company/radiusred) page, [Bluesky](https://bsky.app/profile/radiusred.uk) or [X](https://x.com/radiusred_uk) social, we'd love to say "Hi" :wave:
