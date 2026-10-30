@@ -239,6 +239,31 @@ $0.015 per post, $0.200 per post containing a URL, credits bought up front.
 An announcement is a post plus a link reply, so budget $0.215 per
 announcement.
 
+## Measuring reach
+
+Post reach is measured by a tool, never estimated. One run gives the
+numbers for one account:
+
+```sh
+uv run -m social stats                        # Radius Red, the last 7 full days
+uv run -m social --account codecrew stats --since 2026-10-01 --until 2026-10-07 --json
+```
+
+`social stats` is run by the writer seat, which alone holds the social
+credentials. It reads only: it sends no post and changes nothing. For each
+network it gives every post the account wrote in the window (replies too,
+reposts of other accounts' posts not), the totals and the follower count. X
+gives impressions, likes, reposts, replies and quotes; Bluesky gives likes,
+reposts, replies and quotes, from its public API with no credentials. The
+dates are UTC days, and both are included. `--json` prints one object.
+
+**X read budget.** X bills every read: $0.005 for each post and $0.010 for
+the account's own user record. Before the first X read, `stats` prints the
+most the run can cost. It reads at most `--x-max-posts` posts (default 50,
+so at most $0.260 a run). When that maximum is over `--x-budget` (default
+$0.50), it stops before any read. Raise either one only for a window with
+more posts than the default reads.
+
 ## Credentials
 
 Never in this tree: they live in `~/.config/radiusred/social.env` (see the
