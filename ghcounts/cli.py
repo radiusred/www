@@ -1,7 +1,8 @@
 """``python -m ghcounts`` — stars now, new stars, and the issues, pull requests
 and discussions outside people opened, per repository and in total.
 
-Outside means not a bot and not a member of the repository's owner org.
+Outside means not a bot, not a member of the repository's owner org and not
+a collaborator with direct access to the repository.
 Read-only: GETs and GraphQL queries, nothing else.
 """
 

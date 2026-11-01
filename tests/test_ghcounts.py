@@ -139,7 +139,7 @@ def test_stars_now_and_new_stars_from_starred_at_across_pages(transport, capsys)
     assert star_call["headers"]["Accept"] == "application/vnd.github.star+json"
 
 
-def test_issues_and_prs_are_split_and_bots_and_members_are_not_outside(transport, capsys):
+def test_issues_and_prs_are_split_and_bots_members_and_collaborators_are_not_outside(transport, capsys):
     _script(transport, issues=[
         _issue(9, "stranger", "2026-10-28T10:00:00Z"),
         _issue(8, "helper", "2026-10-27T10:00:00Z", association="CONTRIBUTOR", pull=True),
@@ -147,6 +147,7 @@ def test_issues_and_prs_are_split_and_bots_and_members_are_not_outside(transport
         _issue(6, "some-app", "2026-10-26T09:00:00Z", kind="Bot"),
         _issue(5, "boss", "2026-10-26T08:00:00Z", association="OWNER"),
         _issue(4, "staff", "2026-10-25T08:00:00Z", association="MEMBER", pull=True),
+        _issue(10, "operator", "2026-10-25T07:00:00Z", association="COLLABORATOR"),
         _issue(3, "early", "2026-10-20T08:00:00Z"),
     ], discussions=[])
     assert _run(transport, "--json") == 0
@@ -250,7 +251,7 @@ def test_json_schema_is_pinned(transport, capsys):
     data = _json(capsys)
     assert set(data) == {"window", "inside", "repos", "totals"}
     assert data["window"] == {"since": "2026-10-23", "until": "2026-10-29"}
-    assert data["inside"] == {"author_association": ["OWNER", "MEMBER"], "bots": "excluded"}
+    assert data["inside"] == {"author_association": ["OWNER", "MEMBER", "COLLABORATOR"], "bots": "excluded"}
     row = data["repos"][0]
     assert set(row) == {"repo", "stars", "new_stars", "issues", "pull_requests", "discussions", "member_list"}
     for kind in ("new_stars", "issues", "pull_requests"):
