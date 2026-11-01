@@ -264,23 +264,6 @@ so at most $0.260 a run). When that maximum is over `--x-budget` (default
 $0.50), it stops before any read. Raise either one only for a window with
 more posts than the default reads.
 
-## Credentials
-
-Never in this tree: they live in `~/.config/radiusred/social.env` (see the
-main README, "Posting to social accounts"; the old `~/.config/codecrew/`
-location is read only until the file is moved). `uv run -m social check`
-proves them without posting; `--dry-run` prints the exact request bodies and
-touches no network. Neither output is committed anywhere. The X keys and their
-pitfall (the 25-character OAuth 1.0 Consumer Key, not the 34-character OAuth
-2.0 Client ID) are in the main README; `check` verifies the tokens belong to
-the account's handle, and reports an account with no credits as *out of
-credits*.
-
-## Measuring reach
-
-The brand numbers come from tools, never from estimates. Each tool only
-reads; it writes nothing to any network.
-
 ### GitHub counts: `ghcounts`
 
 `ghcounts` is run by the chief of staff, with its own GitHub App token in
@@ -305,6 +288,18 @@ Outside means not a bot, not a member of the repository's owner org and not
 a collaborator with direct access to the repository. The tool reads this from
 each item's `author_association` (`OWNER`, `MEMBER`, `COLLABORATOR`). It also
 reads the org member list when the token can; an App token usually cannot, and
-the output then says so. A repository with Discussions off
-counts 0 and says so. `--json` prints one object with the window, each
-repository's counts and items, and the totals.
+the output then says so. A repository with Discussions off counts 0 and says
+so. `--json` prints one object with the window, each repository's counts and
+items, and the totals.
+
+## Credentials
+
+Never in this tree: they live in `~/.config/radiusred/social.env` (see the
+main README, "Posting to social accounts"; the old `~/.config/codecrew/`
+location is read only until the file is moved). `uv run -m social check`
+proves them without posting; `--dry-run` prints the exact request bodies and
+touches no network. Neither output is committed anywhere. The X keys and their
+pitfall (the 25-character OAuth 1.0 Consumer Key, not the 34-character OAuth
+2.0 Client ID) are in the main README; `check` verifies the tokens belong to
+the account's handle, and reports an account with no credits as *out of
+credits*.
