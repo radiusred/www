@@ -9,10 +9,12 @@ from datetime import date, datetime, time, timedelta, timezone
 
 from .github import STAR_JSON, GitHub, next_link
 
-# Inside the owner org, as ``author_association`` says. An App installation
-# token cannot see private org membership, so the member list (when the token
-# can read it at all) only adds to this; the count never rests on it alone.
-INSIDE_ASSOCIATIONS = ("OWNER", "MEMBER")
+# Inside, as ``author_association`` says: an owner or member of the owner org,
+# or a collaborator with direct access to the repository. An App installation
+# token cannot see private org membership, so a private member shows as
+# COLLABORATOR at best, and the member list (when the token can read it at
+# all) only adds to this; the count never rests on it alone.
+INSIDE_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
 KINDS = ("new_stars", "issues", "pull_requests", "discussions")
 
 DISCUSSIONS_QUERY = """

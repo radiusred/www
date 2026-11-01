@@ -301,9 +301,10 @@ included; the default is the last 7 full days. The default repositories are
 `radiusred/tradedesk-miner` and `radiusred/ha-sinkhole`; `--repo` (repeatable)
 names others.
 
-Outside means not a bot and not a member of the repository's owner org. The
-tool reads membership from each item's `author_association` (`OWNER`,
-`MEMBER`). It also reads the org member list when the token can; an App token
-usually cannot, and the output then says so. A repository with Discussions off
+Outside means not a bot, not a member of the repository's owner org and not
+a collaborator with direct access to the repository. The tool reads this from
+each item's `author_association` (`OWNER`, `MEMBER`, `COLLABORATOR`). It also
+reads the org member list when the token can; an App token usually cannot, and
+the output then says so. A repository with Discussions off
 counts 0 and says so. `--json` prints one object with the window, each
 repository's counts and items, and the totals.
