@@ -270,7 +270,7 @@ more posts than the default reads.
 `GH_TOKEN`:
 
 ```sh
-export GH_TOKEN=$(gh codecrew identity token <slug>)
+export GH_TOKEN=$(gh codecrew identity token radiusred-bossy)
 uv run -m ghcounts
 uv run -m ghcounts --repo radiusred/tradedesk --since 2026-10-01 --until 2026-10-31 --json
 ```

@@ -103,7 +103,7 @@ def main(argv: list[str] | None = None, transport=None, environ: dict[str, str] 
     token = environ.get("GH_TOKEN")
     if not token:
         print("error: GH_TOKEN is not set; mint the App token first: "
-              "export GH_TOKEN=$(gh codecrew identity token <slug>)", file=sys.stderr)
+              "export GH_TOKEN=$(gh codecrew identity token radiusred-bossy)", file=sys.stderr)
         return 2
     gh = GitHub(transport or UrllibTransport(), token)
     try:
