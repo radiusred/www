@@ -628,7 +628,9 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None, transport=None, environ: dict[str, str] | None = None) -> int:
+def main(argv: list[str] | None = None, transport=None, environ: dict[str, str] | None = None,
+         now: datetime | None = None) -> int:
+    """Run the CLI. ``now`` fixes the clock for ``stats`` (tests); the default is the real clock."""
     args = build_parser().parse_args(argv)
     creds = load_credentials(args.env_file, environ).scoped(args.account)
     transport = transport or UrllibTransport()
@@ -642,7 +644,7 @@ def main(argv: list[str] | None = None, transport=None, environ: dict[str, str] 
         if args.command == "comment":
             return cmd_comment(args, creds, transport)
         if args.command == "stats":
-            return cmd_stats(args, creds, transport)
+            return cmd_stats(args, creds, transport, now=now)
         if args.command == "auth" and args.network == "x":
             return cmd_auth_x(args, creds, transport)
         if args.command == "auth":
