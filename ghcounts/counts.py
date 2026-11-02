@@ -4,17 +4,23 @@ in it."""
 
 from __future__ import annotations
 
+import urllib.parse
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
+
+from social.transport import ApiError
 
 from .github import STAR_JSON, GitHub, next_link
 
 # Inside, as ``author_association`` says: an owner or member of the owner org,
 # or a collaborator with direct access to the repository. An App installation
 # token cannot see private org membership, so a private member shows as
-# COLLABORATOR at best, and the member list (when the token can read it at
-# all) only adds to this; the count never rests on it alone.
+# COLLABORATOR or even CONTRIBUTOR (access through the org), and the member
+# list is often unreadable. So an author left over is inside too when their
+# permission on the repository is one of INSIDE_PERMISSIONS; that read works
+# with the App token. GitHub gives the maintain role as ``write`` there.
 INSIDE_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
+INSIDE_PERMISSIONS = ("admin", "write")
 KINDS = ("new_stars", "issues", "pull_requests", "discussions")
 
 DISCUSSIONS_QUERY = """
@@ -86,18 +92,35 @@ def _counted(items: list[dict], **extra) -> dict:
     return {"count": len(items), "items": sorted(items, key=lambda i: i["date"]), **extra}
 
 
-class Outside:
-    """Whether an author is outside the repo owner's org."""
+def repo_permission(gh: GitHub, repo: str, login: str) -> str | None:
+    """The author's permission on the repository (``admin``, ``write``,
+    ``read`` or ``none``), or None for an account GitHub does not know. Any
+    other refusal is an error: a guess would move the count."""
+    resp = gh.get(f"/repos/{repo}/collaborators/{urllib.parse.quote(login)}/permission")
+    if resp.status == 404:
+        return None
+    if not resp.ok:
+        raise ApiError(f"{repo} permission of {login}", resp)
+    return resp.json().get("permission")
 
-    def __init__(self, members: set[str] | None):
+
+class Outside:
+    """Whether an author is outside the repo owner's org. The permission read
+    runs only for an author that nothing else marks inside, once per author."""
+
+    def __init__(self, members: set[str] | None, permission=lambda login: None):
         self.members = members or set()
+        self.permission = permission
+        self.seen: dict[str, bool] = {}
 
     def __call__(self, login: str, kind: str | None, association: str | None) -> bool:
         if is_bot(login, kind):
             return False
-        if (association or "").upper() in INSIDE_ASSOCIATIONS:
+        if (association or "").upper() in INSIDE_ASSOCIATIONS or login in self.members:
             return False
-        return login not in self.members
+        if login not in self.seen:
+            self.seen[login] = self.permission(login) not in INSIDE_PERMISSIONS
+        return self.seen[login]
 
 
 def new_stars(gh: GitHub, repo: str, window: Window) -> list[dict]:
@@ -159,7 +182,7 @@ def count_repo(gh: GitHub, repo: str, window: Window, members_cache: dict[str, s
         member_list = "read" if members is not None else "not readable"
     else:
         members, member_list = None, "not an org"
-    outside = Outside(members)
+    outside = Outside(members, lambda login: repo_permission(gh, repo, login))
     issues, pulls = opened_issues(gh, repo, window, outside)
     enabled = bool(meta.get("has_discussions"))
     discussions = opened_discussions(gh, repo, window, outside) if enabled else []
@@ -181,7 +204,11 @@ def report(gh: GitHub, repos: list[str], window: Window) -> dict:
     totals.update({kind: sum(r[kind]["count"] for r in rows) for kind in KINDS})
     return {
         "window": {"since": window.since.isoformat(), "until": window.until.isoformat()},
-        "inside": {"author_association": list(INSIDE_ASSOCIATIONS), "bots": "excluded"},
+        "inside": {
+            "author_association": list(INSIDE_ASSOCIATIONS),
+            "repo_permission": list(INSIDE_PERMISSIONS),
+            "bots": "excluded",
+        },
         "repos": rows,
         "totals": totals,
     }
