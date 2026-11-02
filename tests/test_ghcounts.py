@@ -47,7 +47,17 @@ def _discussion(n, login, created, association="NONE", kind="User"):
             "authorAssociation": association, "author": {"login": login, "__typename": kind}}
 
 
-def _script(transport, *, repo=None, members=None, members_status=200, stars=(), issues=(), discussions=None):
+def _perm(transport, login, permission="read", repo=REPO, status=200):
+    body = {"message": "Not Found"} if status == 404 else {"permission": permission}
+    return transport.expect("GET", f"/repos/{repo}/collaborators/{login}/permission", status=status, body=body)
+
+
+def _script(transport, *, repo=None, members=None, members_status=200, stars=(), issues=(), discussions=None,
+            perms=None):
+    """``perms`` maps each author that nothing else marks inside to their
+    permission on the repository; it defaults to ``read`` for ``stranger``."""
+    for login, permission in (perms if perms is not None else {"stranger": "read"}).items():
+        _perm(transport, login, permission)
     transport.expect("GET", f"/repos/{REPO}", body=repo or _repo())
     if (repo or _repo())["owner"]["type"] == "Organization":
         transport.expect("GET", "/orgs/acme/members", status=members_status, body=members if members is not None else [])
@@ -149,7 +159,7 @@ def test_issues_and_prs_are_split_and_bots_members_and_collaborators_are_not_out
         _issue(4, "staff", "2026-10-25T08:00:00Z", association="MEMBER", pull=True),
         _issue(10, "operator", "2026-10-25T07:00:00Z", association="COLLABORATOR"),
         _issue(3, "early", "2026-10-20T08:00:00Z"),
-    ], discussions=[])
+    ], discussions=[], perms={"stranger": "read", "helper": "read"})
     assert _run(transport, "--json") == 0
     row = _json(capsys)["repos"][0]
     assert [i["author"] for i in row["issues"]["items"]] == ["stranger"]
@@ -169,6 +179,38 @@ def test_the_member_list_adds_to_author_association(transport, capsys):
     assert row["member_list"] == "read"
 
 
+@pytest.mark.parametrize("permission", ["admin", "write"])
+def test_an_author_with_write_access_through_the_org_is_not_outside(transport, capsys, permission):
+    # An App token sees an org member with org-granted access as CONTRIBUTOR,
+    # and cannot read the member list: the repo permission decides.
+    _script(transport, issues=[
+        _issue(3, "operator", "2026-10-28T10:00:00Z", association="CONTRIBUTOR"),
+        _issue(2, "operator", "2026-10-27T11:00:00Z", association="CONTRIBUTOR", pull=True),
+        _issue(1, "stranger", "2026-10-27T10:00:00Z", association="CONTRIBUTOR"),
+    ], discussions=[_discussion(1, "operator", "2026-10-26T10:00:00Z")], perms={"operator": permission, "stranger": "read"})
+    assert _run(transport, "--json") == 0
+    row = _json(capsys)["repos"][0]
+    assert [i["author"] for i in row["issues"]["items"]] == ["stranger"]
+    assert (row["pull_requests"]["count"], row["discussions"]["count"]) == (0, 0)
+    # one permission read per author, and none for an author already inside
+    reads = [c["url"] for c in transport.calls if c["url"].endswith("/permission")]
+    assert sorted(reads) == [f"https://api.github.com/repos/{REPO}/collaborators/{u}/permission" for u in ("operator", "stranger")]
+
+
+def test_an_account_github_does_not_know_is_outside(transport, capsys):
+    _perm(transport, "gone", status=404)
+    _script(transport, issues=[_issue(1, "gone", "2026-10-27T10:00:00Z")], discussions=[], perms={})
+    assert _run(transport, "--json") == 0
+    assert _json(capsys)["repos"][0]["issues"]["count"] == 1
+
+
+def test_a_refused_permission_read_is_an_error_not_a_guess(transport, capsys):
+    _perm(transport, "stranger", status=403)
+    _script(transport, issues=[_issue(1, "stranger", "2026-10-27T10:00:00Z")], discussions=[], perms={})
+    assert _run(transport) == 1
+    assert "acme/widget permission of stranger: HTTP 403" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("status, body", [(403, {"message": "Resource not accessible by integration"}), (200, [])])
 def test_an_unreadable_member_list_is_not_an_error(transport, capsys, status, body):
     _script(transport, members=body, members_status=status, issues=[
@@ -178,7 +220,7 @@ def test_an_unreadable_member_list_is_not_an_error(transport, capsys, status, bo
     assert _run(transport) == 0
     out = capsys.readouterr().out
     assert "issues by outside people: 1" in out
-    assert "org member list: not readable with this token; outside is judged from author_association" in out
+    assert "org member list: not readable with this token; outside is judged from author_association and repo permission" in out
 
 
 def test_a_user_owned_repo_reads_no_member_list(transport, capsys):
@@ -191,6 +233,7 @@ def test_a_user_owned_repo_reads_no_member_list(transport, capsys):
 def test_the_issues_list_stops_at_the_page_that_reaches_before_the_window(transport, capsys):
     transport.expect("GET", f"/repos/{REPO}", body=_repo(discussions=False))
     transport.expect("GET", "/orgs/acme/members", body=[])
+    _perm(transport, "a")
     transport.expect("GET", f"/repos/{REPO}/issues", body=[_issue(2, "a", "2026-10-28T10:00:00Z"), _issue(1, "b", "2026-10-01T10:00:00Z")],
                      headers={"link": f'<https://api.github.com/repos/{REPO}/issues?page=2>; rel="next"'})
     transport.expect("GET", f"/repos/{REPO}/stargazers", body=[])
@@ -205,6 +248,8 @@ def test_discussions_count_outside_authors_and_page_until_the_window(transport, 
     transport.expect("GET", f"/repos/{REPO}", body=_repo())
     transport.expect("GET", "/orgs/acme/members", body=[])
     transport.expect("GET", f"/repos/{REPO}/issues", body=[])
+    _perm(transport, "asker")
+    _perm(transport, "other")
     transport.expect("POST", "/graphql", body=_discussions([
         _discussion(5, "asker", "2026-10-29T10:00:00Z"),
         _discussion(4, "radiusred-wordy", "2026-10-28T10:00:00Z", kind="Bot"),
@@ -236,6 +281,7 @@ def test_totals_add_up_across_repos(transport, capsys):
         if name == "acme/one":
             transport.expect("GET", "/orgs/acme/members", body=[])
         transport.expect("GET", f"/repos/{name}/issues", body=[_issue(1, "stranger", "2026-10-27T10:00:00Z")])
+        _perm(transport, "stranger", repo=name)
         transport.expect("GET", f"/repos/{name}/stargazers", body=[_star("fan", starred)])
     rc = cli.main(["--repo", "acme/one", "--repo", "acme/two", "--json"], transport=transport, environ=ENV, today=TODAY)
     assert rc == 0
@@ -251,7 +297,8 @@ def test_json_schema_is_pinned(transport, capsys):
     data = _json(capsys)
     assert set(data) == {"window", "inside", "repos", "totals"}
     assert data["window"] == {"since": "2026-10-23", "until": "2026-10-29"}
-    assert data["inside"] == {"author_association": ["OWNER", "MEMBER", "COLLABORATOR"], "bots": "excluded"}
+    assert data["inside"] == {"author_association": ["OWNER", "MEMBER", "COLLABORATOR"],
+                              "repo_permission": ["admin", "write"], "bots": "excluded"}
     row = data["repos"][0]
     assert set(row) == {"repo", "stars", "new_stars", "issues", "pull_requests", "discussions", "member_list"}
     for kind in ("new_stars", "issues", "pull_requests"):

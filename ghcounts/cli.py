@@ -1,8 +1,9 @@
 """``python -m ghcounts`` — stars now, new stars, and the issues, pull requests
 and discussions outside people opened, per repository and in total.
 
-Outside means not a bot, not a member of the repository's owner org and not
-a collaborator with direct access to the repository.
+Outside means not a bot, not a member of the repository's owner org, not
+a collaborator with direct access to the repository, and without write,
+maintain or admin permission on the repository.
 Read-only: GETs and GraphQL queries, nothing else.
 """
 
@@ -83,7 +84,7 @@ def render(data: dict) -> str:
             lines.append(f"  {LABELS[kind]}: {block['count']}{note}")
             lines += [f"    {i['date'][:10]}  {i['author']}  {i['url']}" for i in block["items"]]
         if row["member_list"] == "not readable":
-            lines.append("  org member list: not readable with this token; outside is judged from author_association")
+            lines.append("  org member list: not readable with this token; outside is judged from author_association and repo permission")
     totals = data["totals"]
     lines += ["", "total", f"  stars now: {totals['stars']}"]
     lines += [f"  {LABELS[kind]}: {totals[kind]}" for kind in KINDS]
