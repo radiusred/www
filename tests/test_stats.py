@@ -66,7 +66,7 @@ def _queue_x(transport, pages=None, username="example_uk", followers=120):
 
 
 def _run(env_file, transport, *extra, account=()):
-    return cli.main(["--env-file", str(env_file), *account, "stats", *WINDOW, *extra], transport=transport, environ={})
+    return cli.main(["--env-file", str(env_file), *account, "stats", *WINDOW, *extra], transport=transport, environ={}, now=NOW)
 
 
 def _query(call):
@@ -97,8 +97,20 @@ def test_one_date_sets_the_other_seven_days_away():
 ])
 def test_a_bad_window_is_a_usage_error(env_file, refusing_transport, capsys, since, until, message):
     args = ["--env-file", str(env_file), "stats", "--since", since] + (["--until", until] if until else [])
-    assert cli.main(args, transport=refusing_transport, environ={}) == 2
+    assert cli.main(args, transport=refusing_transport, environ={}, now=NOW) == 2
     assert message in capsys.readouterr().err
+
+
+def test_without_a_fixed_clock_the_window_reads_the_system_clock(env_file, refusing_transport, capsys, monkeypatch):
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return NOW
+
+    monkeypatch.setattr(cli, "datetime", Clock)
+    args = ["--env-file", str(env_file), "stats", "--since", "2026-10-31"]
+    assert cli.main(args, transport=refusing_transport, environ={}) == 2
+    assert "in the future" in capsys.readouterr().err
 
 
 # --- the X cost guard -------------------------------------------------------
