@@ -278,7 +278,15 @@ uv run -m ghcounts --repo radiusred/tradedesk --since 2026-10-01 --until 2026-10
 For each repository and in total it gives the stars now, the new stars in the
 window (from the date of each star), and the issues, pull requests and
 discussions that outside people opened in the window. It lists each counted
-item with its URL, author and date. The window is UTC dates, both days
+item with its URL, author and date.
+
+GitHub can refuse the list of stargazers to an App token (HTTP 403). The
+tool then prints `new stars not available with this token`, lists no new
+stars, and counts the rest as usual (`--json` gives `"available": false` and a
+`null` count). So the weekly star change comes from the scorecard totals: the
+stars now of this week's run less those of last week's run. That is the net
+change, new stars less removed stars. A token that can read the stargazers
+still gets each new star listed. The window is UTC dates, both days
 included; the default is the last 7 full days. The default repositories are
 `radiusred/tradedesk`, `radiusred/tradedesk-marketdata`,
 `radiusred/tradedesk-miner` and `radiusred/ha-sinkhole`; `--repo` (repeatable)
