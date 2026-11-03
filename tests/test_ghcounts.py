@@ -1,5 +1,5 @@
 """``ghcounts``: stars and outside contributions, read-only, from scripted
-responses (radiusred/www#105, M12-R2 and M12-R4). No test touches the network."""
+responses (radiusred/www#105 and radiusred/www#111, M12-R2 and M12-R4). No test touches the network."""
 
 import json
 from datetime import date
@@ -53,7 +53,7 @@ def _perm(transport, login, permission="read", repo=REPO, status=200):
 
 
 def _script(transport, *, repo=None, members=None, members_status=200, stars=(), issues=(), discussions=None,
-            perms=None):
+            perms=None, stars_status=200, stars_headers=None):
     """``perms`` maps each author that nothing else marks inside to their
     permission on the repository; it defaults to ``read`` for ``stranger``."""
     for login, permission in (perms if perms is not None else {"stranger": "read"}).items():
@@ -64,7 +64,8 @@ def _script(transport, *, repo=None, members=None, members_status=200, stars=(),
     transport.expect("GET", f"/repos/{REPO}/issues", body=list(issues))
     if discussions is not None:
         transport.expect("POST", "/graphql", body=_discussions(discussions))
-    transport.expect("GET", f"/repos/{REPO}/stargazers", body=list(stars))
+    body = {"message": "Resource not accessible by integration"} if stars_status == 403 else list(stars)
+    transport.expect("GET", f"/repos/{REPO}/stargazers", status=stars_status, body=body, headers=stars_headers)
     return transport
 
 
@@ -143,6 +144,7 @@ def test_stars_now_and_new_stars_from_starred_at_across_pages(transport, capsys)
     row = _json(capsys)["repos"][0]
     assert row["stars"] == 3
     assert row["new_stars"]["count"] == 2
+    assert row["new_stars"]["available"] is True
     assert [i["author"] for i in row["new_stars"]["items"]] == ["a", "b"]
     assert row["new_stars"]["items"][0] == {"url": "https://github.com/a", "author": "a", "date": "2026-10-23T08:00:00Z"}
     star_call = next(c for c in transport.calls if "stargazers" in c["url"])
@@ -301,7 +303,8 @@ def test_json_schema_is_pinned(transport, capsys):
                               "repo_permission": ["admin", "write"], "bots": "excluded"}
     row = data["repos"][0]
     assert set(row) == {"repo", "stars", "new_stars", "issues", "pull_requests", "discussions", "member_list"}
-    for kind in ("new_stars", "issues", "pull_requests"):
+    assert set(row["new_stars"]) == {"count", "items", "available"}
+    for kind in ("issues", "pull_requests"):
         assert set(row[kind]) == {"count", "items"}
     assert set(row["discussions"]) == {"count", "items", "enabled"}
     assert set(row["issues"]["items"][0]) == {"url", "author", "date"}
@@ -321,6 +324,74 @@ def test_an_api_error_is_reported_not_raised(transport, capsys):
     transport.expect("GET", f"/repos/{REPO}", status=404, body={"message": "Not Found"})
     assert _run(transport) == 1
     assert "acme/widget lookup: HTTP 404" in capsys.readouterr().err
+
+
+# --- new stars refused (M12-R2 as amended on radiusred/ops#41) ---------------
+
+REFUSED = "new stars not available with this token"
+
+
+def test_a_refused_stargazer_list_still_gives_stars_and_the_other_counts(transport, capsys):
+    _script(transport, repo=_repo(stars=7), stars_status=403, issues=[
+        _issue(2, "stranger", "2026-10-28T10:00:00Z", pull=True),
+        _issue(1, "stranger", "2026-10-27T10:00:00Z"),
+    ], discussions=[_discussion(1, "stranger", "2026-10-26T10:00:00Z")])
+    assert _run(transport, "--json") == 0
+    data = _json(capsys)
+    row = data["repos"][0]
+    assert row["stars"] == 7
+    assert row["new_stars"] == {"count": None, "items": [], "available": False}
+    assert (row["issues"]["count"], row["pull_requests"]["count"], row["discussions"]["count"]) == (1, 1, 1)
+    assert data["totals"] == {"stars": 7, "new_stars": None, "issues": 1, "pull_requests": 1, "discussions": 1}
+    assert transport.queue == []
+
+
+def test_a_refused_stargazer_list_says_so_in_the_text_and_lists_none(transport, capsys):
+    _script(transport, stars_status=403, discussions=[], perms={})
+    assert _run(transport) == 0
+    out = capsys.readouterr().out
+    assert f"  stars now: 5\n  {REFUSED}\n  issues by outside people: 0" in out
+    assert f"total\n  stars now: 5\n  {REFUSED}\n" in out
+    assert "new stars:" not in out
+
+
+def test_a_refusal_on_a_later_page_lists_no_stars_at_all(transport, capsys):
+    transport.expect("GET", f"/repos/{REPO}", body=_repo(discussions=False))
+    transport.expect("GET", "/orgs/acme/members", body=[])
+    transport.expect("GET", f"/repos/{REPO}/issues", body=[])
+    transport.expect("GET", f"/repos/{REPO}/stargazers", body=[_star("a", "2026-10-23T08:00:00Z")],
+                     headers={"link": f'<https://api.github.com/repos/{REPO}/stargazers?page=2>; rel="next"'})
+    transport.expect("GET", f"/repos/{REPO}/stargazers?page=2", status=403, body={"message": "Forbidden"})
+    assert _run(transport, "--json") == 0
+    assert _json(capsys)["repos"][0]["new_stars"] == {"count": None, "items": [], "available": False}
+
+
+def test_a_rate_limit_403_on_the_stargazer_list_is_still_an_error(transport, capsys):
+    _script(transport, stars_status=403, stars_headers={"x-ratelimit-remaining": "0"}, discussions=[], perms={})
+    assert _run(transport) == 1
+    assert "acme/widget stargazers: HTTP 403" in capsys.readouterr().err
+
+
+def test_another_error_on_the_stargazer_list_is_still_an_error(transport, capsys):
+    _script(transport, stars_status=500, discussions=[], perms={})
+    assert _run(transport) == 1
+    assert "acme/widget stargazers: HTTP 500" in capsys.readouterr().err
+
+
+def test_one_refused_repo_makes_the_new_stars_total_null_not_partial(transport, capsys):
+    for name, status in (("acme/one", 200), ("acme/two", 403)):
+        transport.expect("GET", f"/repos/{name}", body=_repo(stars=4, discussions=False))
+        if name == "acme/one":
+            transport.expect("GET", "/orgs/acme/members", body=[])
+        transport.expect("GET", f"/repos/{name}/issues", body=[])
+        transport.expect("GET", f"/repos/{name}/stargazers", status=status,
+                         body=[_star("fan", "2026-10-24T00:00:00Z")] if status == 200 else {"message": "Forbidden"})
+    rc = cli.main(["--repo", "acme/one", "--repo", "acme/two", "--json"], transport=transport, environ=ENV, today=TODAY)
+    assert rc == 0
+    data = _json(capsys)
+    assert [r["new_stars"]["count"] for r in data["repos"]] == [1, None]
+    assert data["totals"]["stars"] == 8
+    assert data["totals"]["new_stars"] is None
 
 
 # --- read-only ----------------------------------------------------------------

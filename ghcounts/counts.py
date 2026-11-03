@@ -1,6 +1,6 @@
 """What ``ghcounts`` counts, per repository: stars now, new stars in the
-window, and the issues, pull requests and discussions outside people opened
-in it."""
+window when the token may read the stargazers, and the issues, pull requests
+and discussions outside people opened in it."""
 
 from __future__ import annotations
 
@@ -123,17 +123,33 @@ class Outside:
         return self.seen[login]
 
 
-def new_stars(gh: GitHub, repo: str, window: Window) -> list[dict]:
-    """Every star given in the window. The list runs oldest first, so it is
-    read to the end."""
+def new_stars(gh: GitHub, repo: str, window: Window) -> list[dict] | None:
+    """Every star given in the window, or None when the token may not read
+    the stargazers: GitHub can refuse the list to an App token (HTTP 403).
+    A 403 for a spent rate limit is an error, not a refusal. The list runs
+    oldest first, so it is read to the end."""
     found = []
-    for page in gh.pages(f"{repo} stargazers", f"/repos/{repo}/stargazers", accept=STAR_JSON):
-        for star in page:
+    url = f"/repos/{repo}/stargazers"
+    params = {"per_page": "100"}
+    while url:
+        resp = gh.get(url, params, accept=STAR_JSON)
+        if resp.status == 403 and resp.headers.get("x-ratelimit-remaining") != "0":
+            return None
+        if not resp.ok:
+            raise ApiError(f"{repo} stargazers", resp)
+        for star in resp.json():
             if parse_ts(star["starred_at"]) in window:
                 user = star.get("user") or {}
                 login = user.get("login", "ghost")
                 found.append(_item(user.get("html_url", f"https://github.com/{login}"), login, star["starred_at"]))
+        url, params = next_link(resp), None
     return found
+
+
+def _stars_block(stars: list[dict] | None) -> dict:
+    if stars is None:
+        return {"count": None, "items": [], "available": False}
+    return _counted(stars, available=True)
 
 
 def opened_issues(gh: GitHub, repo: str, window: Window, outside: Outside) -> tuple[list[dict], list[dict]]:
@@ -189,7 +205,7 @@ def count_repo(gh: GitHub, repo: str, window: Window, members_cache: dict[str, s
     return {
         "repo": repo,
         "stars": meta["stargazers_count"],
-        "new_stars": _counted(new_stars(gh, repo, window)),
+        "new_stars": _stars_block(new_stars(gh, repo, window)),
         "issues": _counted(issues),
         "pull_requests": _counted(pulls),
         "discussions": _counted(discussions, enabled=enabled),
@@ -201,7 +217,10 @@ def report(gh: GitHub, repos: list[str], window: Window) -> dict:
     cache: dict[str, set[str] | None] = {}
     rows = [count_repo(gh, repo, window, cache) for repo in repos]
     totals = {"stars": sum(r["stars"] for r in rows)}
-    totals.update({kind: sum(r[kind]["count"] for r in rows) for kind in KINDS})
+    # A null count anywhere makes the total null: a sum over only the
+    # readable repos would look like a full one.
+    totals.update({kind: None if any(r[kind]["count"] is None for r in rows) else sum(r[kind]["count"] for r in rows)
+                   for kind in KINDS})
     return {
         "window": {"since": window.since.isoformat(), "until": window.until.isoformat()},
         "inside": {

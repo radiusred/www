@@ -1,6 +1,10 @@
 """``python -m ghcounts`` — stars now, new stars, and the issues, pull requests
 and discussions outside people opened, per repository and in total.
 
+New stars need a token that may read the stargazers. GitHub can refuse them to
+an App token; the output then says so, and the weekly star change comes from
+the change in stars now between weekly runs.
+
 Outside means not a bot, not a member of the repository's owner org, not
 a collaborator with direct access to the repository, and without write,
 maintain or admin permission on the repository.
@@ -29,6 +33,7 @@ DEFAULT_REPOS = (
 )
 WHO_RUNS_IT = "Run by the chief of staff, with its own GitHub App token in GH_TOKEN."
 REPO_RE = re.compile(r"^[\w.-]+/[\w.-]+$")
+NO_STARS = "new stars not available with this token"
 LABELS = {
     "new_stars": "new stars",
     "issues": "issues by outside people",
@@ -80,6 +85,9 @@ def render(data: dict) -> str:
         lines += ["", row["repo"], f"  stars now: {row['stars']}"]
         for kind in KINDS:
             block = row[kind]
+            if kind == "new_stars" and not block["available"]:
+                lines.append(f"  {NO_STARS}")
+                continue
             note = " (Discussions are off)" if kind == "discussions" and not block["enabled"] else ""
             lines.append(f"  {LABELS[kind]}: {block['count']}{note}")
             lines += [f"    {i['date'][:10]}  {i['author']}  {i['url']}" for i in block["items"]]
@@ -87,7 +95,7 @@ def render(data: dict) -> str:
             lines.append("  org member list: not readable with this token; outside is judged from author_association and repo permission")
     totals = data["totals"]
     lines += ["", "total", f"  stars now: {totals['stars']}"]
-    lines += [f"  {LABELS[kind]}: {totals[kind]}" for kind in KINDS]
+    lines += [f"  {NO_STARS}" if totals[kind] is None else f"  {LABELS[kind]}: {totals[kind]}" for kind in KINDS]
     return "\n".join(lines)
 
 
