@@ -326,7 +326,7 @@ def test_an_api_error_is_reported_not_raised(transport, capsys):
     assert "acme/widget lookup: HTTP 404" in capsys.readouterr().err
 
 
-# --- new stars refused (M12-R2 as amended on radiusred/ops#41) ---------------
+# --- new stars refused (M12-R2, #111) -----------------------------------------
 
 REFUSED = "new stars not available with this token"
 
