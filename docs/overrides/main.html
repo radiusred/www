@@ -1,6 +1,19 @@
 {% extends "base.html" %}
 
 {#-
+  The nav label of a blog post carries its date as HTML
+  (`<small class="muted">`), and newer Zensical releases use that label as
+  page.title. The front-matter title is plain text, so prefer it; strip any
+  tags from the nav label otherwise. The result is escaped where it is used.
+-#}
+{% set plain_title = (page.meta.title if page and page.meta and page.meta.title else (page.title if page and page.title else "")) | striptags %}
+{% if plain_title and plain_title != config.site_name %}
+  {% set full_title = plain_title ~ " - " ~ config.site_name %}
+{% else %}
+  {% set full_title = config.site_name ~ " — Agentic Engineering, Human Consulting" %}
+{% endif %}
+
+{#-
   Extends the base <head> with:
    - Atom feed auto-discovery link
    - Open Graph / Twitter Card meta tags
@@ -13,7 +26,7 @@
   {# Open Graph — enables rich link previews on social platforms #}
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Radius Red" />
-  <meta property="og:title" content="{% if page and page.title and page.title != config.site_name %}{{ page.title }} - {{ config.site_name }}{% else %}{{ config.site_name }} — Agentic Engineering, Human Consulting{% endif %}" />
+  <meta property="og:title" content="{{ full_title | e }}" />
   <meta property="og:description" content="{% if page and page.meta and page.meta.description %}{{ page.meta.description }}{% else %}{{ config.site_description }}{% endif %}" />
   <meta property="og:url" content="{{ page.canonical_url }}" />
   {# Link previews need an absolute image URL; the file is made by brand/make_banners.py #}
@@ -26,7 +39,7 @@
   <meta property="og:image:alt" content="{{ preview_alt }}" />
   <meta property="og:locale" content="en_GB" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{% if page and page.title and page.title != config.site_name %}{{ page.title }} - {{ config.site_name }}{% else %}{{ config.site_name }} — Agentic Engineering, Human Consulting{% endif %}" />
+  <meta name="twitter:title" content="{{ full_title | e }}" />
   <meta name="twitter:description" content="{% if page and page.meta and page.meta.description %}{{ page.meta.description }}{% else %}{{ config.site_description }}{% endif %}" />
   <meta name="twitter:image" content="{{ preview_image }}" />
   <meta name="twitter:image:alt" content="{{ preview_alt }}" />
@@ -92,9 +105,5 @@
 {% endblock %}
 
 {% block htmltitle %}
-  {% if page and page.title and page.title != config.site_name %}
-    <title>{{ page.title }} - {{ config.site_name }}</title>
-  {% else %}
-    <title>{{ config.site_name }} — Agentic Engineering, Human Consulting</title>
-  {% endif %}
+  <title>{{ full_title | e }}</title>
 {% endblock %}
