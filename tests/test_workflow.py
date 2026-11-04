@@ -26,11 +26,20 @@ def _uses(job):
 def test_build_job_uploads_the_zensical_output_as_the_pages_artifact():
     build = _load()["jobs"]["build"]
     runs = [step["run"] for step in build["steps"] if "run" in step]
-    assert runs[-1] == "zensical build --clean"
+    assert runs[-1] == "uv run zensical build --clean"
     upload = [s for s in build["steps"] if s.get("uses", "").startswith("actions/upload-pages-artifact@")]
     assert len(upload) == 1
     assert upload[0]["with"] == {"path": "site"}
     assert build["steps"][-1] is upload[0], "the artifact upload must be the last build step"
+
+
+def test_build_uses_the_locked_zensical():
+    # M13-R2: an unpinned `pip install zensical` let a new release change the live site.
+    build = _load()["jobs"]["build"]
+    runs = [step["run"] for step in build["steps"] if "run" in step]
+    assert "uv sync --locked" in runs
+    assert not any("pip install" in run for run in runs), runs
+    assert any(s.get("uses", "").startswith("astral-sh/setup-uv@") for s in build["steps"])
 
 
 def test_deploy_job_has_what_deploy_pages_needs():
